@@ -19,7 +19,7 @@ Upload dataset → Validate → Run audit → Visualise disparity → Investigat
 3. **Audit results** (`/audits/[id]`) — selection rates with Wilson CIs, adverse impact ratio with CI, Fisher exact tests, Mann–Whitney score comparison, Holm correction, suppression, missingness, findings with evidence and limitations. "Re-run & verify" proves reproducibility.
 4. **Investigation Centre** — assign owner, add reviewer notes, sign off a resolution (Reviewer/Admin only).
 5. **Reports** — printable PDF and JSON evidence package with provenance (file + dataset SHA-256), methodology, results, findings, reviewer sign-off and a checksum.
-6. **Counterfactual Lab** — matched synthetic profiles against a *mock* screening engine only.
+6. **Counterfactual Lab** — matched synthetic CVs against a *mock* screening engine only. Base profiles come from a pack of 60 machine-generated résumés from [jsonresume-fake](https://github.com/jsonresume/jsonresume-fake) (Unlicense), stripped of names, contact details, locations, references and interests (`src/lib/data/resume-pack.json`). Each pair varies one cue (employment gap, postcode region, or CV layout as a control); a side-by-side CV diff shows the single change and its effect on the mock score.
 
 The header role switcher (Admin / Auditor / Reviewer / Read-only) demonstrates RBAC: e.g. only Admins see raw sensitive values; Reviewers sign off; Read-only views.
 

@@ -2,29 +2,57 @@
 
 import { useState } from "react";
 import { DeltaChart } from "@/components/charts";
+import { ResumeDiff } from "@/components/ResumeDiff";
 import { Badge, Kv, PageHeader, fmtP, pct } from "@/components/ui";
-import { CUES, MOCK_ENGINE_VERSION, runCounterfactual, type CounterfactualCue, type CounterfactualResult } from "@/lib/fairness/counterfactual";
+import { RESUME_PACK, RESUME_PACK_SOURCE, yearsOfExperience } from "@/lib/data/resumes";
+import {
+  CUES,
+  MOCK_ENGINE_VERSION,
+  applyCue,
+  runCounterfactual,
+  type CounterfactualCue,
+  type CounterfactualResult,
+} from "@/lib/fairness/counterfactual";
 import { useStore } from "@/lib/store";
+
+type Source = "resumes" | "generated";
+const BASES = RESUME_PACK.map((r) => ({ id: r.id, yearsExperience: yearsOfExperience(r) }));
 
 export default function FairnessLabPage() {
   const { log } = useStore();
+  const [source, setSource] = useState<Source>("resumes");
   const [cue, setCue] = useState<CounterfactualCue>("employmentGap");
-  const [pairs, setPairs] = useState(100);
+  const [pairs, setPairs] = useState(60);
   const [seed, setSeed] = useState(42);
   const [threshold, setThreshold] = useState(60);
   const [result, setResult] = useState<CounterfactualResult | null>(null);
+  const [resultSource, setResultSource] = useState<Source>("resumes");
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const maxPairs = source === "resumes" ? RESUME_PACK.length : 1000;
 
   function run() {
-    const r = runCounterfactual({ cue, pairCount: Math.min(1000, Math.max(10, pairs)), seed, threshold });
+    const r = runCounterfactual({
+      cue,
+      pairCount: Math.min(maxPairs, Math.max(10, pairs)),
+      seed,
+      threshold,
+      bases: source === "resumes" ? BASES : undefined,
+    });
     setResult(r);
-    log("counterfactual.run", `mock-engine:${MOCK_ENGINE_VERSION}`, `${cue}; ${r.pairs.length} pairs; seed ${seed}`);
+    setResultSource(source);
+    // Open the diff on the first pair whose decision flipped, if any — that is the most telling example.
+    setSelected((r.pairs.find((p) => p.baseAdvances !== p.variantAdvances) ?? r.pairs[0]).id);
+    log("counterfactual.run", `mock-engine:${MOCK_ENGINE_VERSION}`, `${cue}; ${r.pairs.length} pairs; ${source}; seed ${seed}`);
   }
 
   const reacts = result && result.signTestP < 0.05 && Math.abs(result.meanDelta) > 0;
+  const pair = result?.pairs.find((p) => p.id === selected);
+  const resume = pair && resultSource === "resumes" ? RESUME_PACK.find((r) => r.id === pair.id) : undefined;
 
   return (
     <>
-      <PageHeader title="Counterfactual Lab" subtitle="Matched synthetic profiles that differ in exactly one job-irrelevant cue." />
+      <PageHeader title="Counterfactual Lab" subtitle="Matched synthetic CVs that differ in exactly one job-irrelevant cue." />
       <div className="mb-6 rounded-lg border border-brand/30 bg-brand-soft px-4 py-3 text-sm text-ink">
         <strong>Mock screening engine only ({MOCK_ENGINE_VERSION}).</strong> Paired tests are only run against systems where controlled test submission is
         authorised. No real ATS or vendor model is contacted. The mock engine deliberately contains biases so the method can be demonstrated.
@@ -33,6 +61,31 @@ export default function FairnessLabPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="card">
           <fieldset>
+            <legend className="label">Base profiles</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["resumes", `Résumé pack (${RESUME_PACK.length} CVs)`],
+                  ["generated", "Generated numbers"],
+                ] as const
+              ).map(([k, label]) => (
+                <label key={k} className={`cursor-pointer rounded-md border px-3 py-2 text-xs font-medium ${source === k ? "border-brand bg-brand-soft" : "border-line bg-white"}`}>
+                  <input
+                    type="radio"
+                    name="source"
+                    className="mr-1.5"
+                    checked={source === k}
+                    onChange={() => {
+                      setSource(k);
+                      if (k === "resumes") setPairs((n) => Math.min(n, RESUME_PACK.length));
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="mt-4">
             <legend className="label">Cue to vary</legend>
             <div className="space-y-2">
               {(Object.keys(CUES) as CounterfactualCue[]).map((k) => (
@@ -47,7 +100,7 @@ export default function FairnessLabPage() {
           <div className="mt-4 grid grid-cols-3 gap-3">
             <div>
               <label className="label" htmlFor="pairs">Pairs</label>
-              <input id="pairs" type="number" className="input" min={10} max={1000} value={pairs} onChange={(e) => setPairs(Number(e.target.value))} />
+              <input id="pairs" type="number" className="input" min={10} max={maxPairs} value={pairs} onChange={(e) => setPairs(Number(e.target.value))} />
             </div>
             <div>
               <label className="label" htmlFor="seed">Seed</label>
@@ -61,6 +114,16 @@ export default function FairnessLabPage() {
           <button className="btn btn-primary mt-4 w-full" onClick={run}>
             Run experiment
           </button>
+          {source === "resumes" && (
+            <p className="mt-3 text-xs text-ink-2">
+              CVs are machine-generated by{" "}
+              <a className="text-brand underline" href={RESUME_PACK_SOURCE.url} target="_blank" rel="noreferrer">
+                {RESUME_PACK_SOURCE.name}
+              </a>{" "}
+              ({RESUME_PACK_SOURCE.licence}). Names, contact details, locations, references and interests are removed. Experience comes from each CV&apos;s work
+              history; skills match and assessment score are seeded.
+            </p>
+          )}
         </section>
 
         <section className="card lg:col-span-2">
@@ -87,24 +150,29 @@ export default function FairnessLabPage() {
                 What can be concluded: whether <em>this tested system</em> reacts differently to the controlled change. It says nothing about the outcomes of real
                 applicants.
               </p>
-              <div className="mt-4 overflow-x-auto">
+              <div className="mt-4 max-h-72 overflow-auto">
                 <table className="table tabular text-xs">
-                  <thead>
+                  <thead className="sticky top-0 bg-surface">
                     <tr>
                       <th>Profile</th>
                       <th>Experience</th>
                       <th>Skills match</th>
                       <th>Assessment</th>
-                      <th>Base score</th>
-                      <th>Variant score</th>
+                      <th>Base</th>
+                      <th>Variant</th>
                       <th>Δ</th>
                       <th>Decision</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.pairs.slice(0, 8).map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.id}</td>
+                    {result.pairs.map((p) => (
+                      <tr
+                        key={p.id}
+                        onClick={() => setSelected(p.id)}
+                        className={`cursor-pointer ${p.id === selected ? "bg-brand-soft" : "hover:bg-plane"}`}
+                        aria-selected={p.id === selected}
+                      >
+                        <td className="font-medium text-brand underline-offset-2 hover:underline">{p.id}</td>
                         <td>{p.base.yearsExperience} yrs</td>
                         <td>{p.base.skillsMatch.toFixed(2)}</td>
                         <td>{p.base.assessmentScore}</td>
@@ -121,6 +189,29 @@ export default function FairnessLabPage() {
           )}
         </section>
       </div>
+
+      {pair && resume && result && (
+        <section className="card mt-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">
+              CV diff — {pair.id} · {CUES[result.cue].label}
+            </h2>
+            <span className="tabular text-xs text-ink-2">
+              Score change {pair.delta > 0 ? "+" : ""}
+              {pair.delta} · {pair.baseAdvances === pair.variantAdvances ? "same decision" : "decision flipped"} · pass mark {result.threshold}
+            </span>
+          </div>
+          <ResumeDiff
+            resume={resume}
+            base={pair.base}
+            variant={applyCue(pair.base, result.cue, true)}
+            baseScore={pair.baseScore}
+            variantScore={pair.variantScore}
+            threshold={result.threshold}
+          />
+          <p className="mt-3 text-xs text-ink-2">Highlighted lines are the only difference between the two CVs. Select another row above to compare a different pair.</p>
+        </section>
+      )}
     </>
   );
 }

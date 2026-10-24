@@ -75,7 +75,7 @@ export interface CounterfactualResult {
   signTestP: number;
 }
 
-function applyCue(p: SyntheticProfile, cue: CounterfactualCue, variant: boolean): SyntheticProfile {
+export function applyCue(p: SyntheticProfile, cue: CounterfactualCue, variant: boolean): SyntheticProfile {
   switch (cue) {
     case "employmentGap":
       return { ...p, employmentGap: variant };
@@ -86,13 +86,34 @@ function applyCue(p: SyntheticProfile, cue: CounterfactualCue, variant: boolean)
   }
 }
 
-export function runCounterfactual(opts: { cue: CounterfactualCue; pairCount: number; seed: number; threshold: number }): CounterfactualResult {
+/** A base profile taken from an existing synthetic CV (e.g. the résumé pack). */
+export interface CounterfactualBase {
+  id: string;
+  yearsExperience: number;
+}
+
+/**
+ * Without `bases`, profiles are fully generated. With `bases`, each pair starts
+ * from one CV (experience comes from its work history; skills match and
+ * assessment score, which a CV does not carry, are seeded), at most one pair per CV.
+ */
+export function runCounterfactual(opts: {
+  cue: CounterfactualCue;
+  pairCount: number;
+  seed: number;
+  threshold: number;
+  bases?: CounterfactualBase[];
+}): CounterfactualResult {
   const rand = mulberry32(opts.seed);
   const pairs: CounterfactualPair[] = [];
-  for (let i = 0; i < opts.pairCount; i++) {
+  const count = opts.bases ? Math.min(opts.pairCount, opts.bases.length) : opts.pairCount;
+  const offset = opts.bases ? Math.abs(Math.trunc(opts.seed)) % opts.bases.length : 0;
+  for (let i = 0; i < count; i++) {
+    const source = opts.bases?.[(offset + i) % opts.bases.length];
+    const generatedYears = Math.floor(rand() * 12);
     const profile: SyntheticProfile = {
-      id: `SYN-${String(i + 1).padStart(3, "0")}`,
-      yearsExperience: Math.floor(rand() * 12),
+      id: source?.id ?? `SYN-${String(i + 1).padStart(3, "0")}`,
+      yearsExperience: source?.yearsExperience ?? generatedYears,
       skillsMatch: Math.round(rand() * 100) / 100,
       assessmentScore: Math.round(40 + rand() * 60),
       employmentGap: false,
