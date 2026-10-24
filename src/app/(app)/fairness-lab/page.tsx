@@ -244,6 +244,10 @@ export default function FairnessLabPage() {
                     ["Employment gap", pair.base.employmentGap ? "12 months" : "None", v.employmentGap ? "12 months" : "None"],
                     ["Postcode region", pair.base.postcodeRegion, v.postcodeRegion],
                     ["CV layout", pair.base.cvFormat, v.cvFormat],
+                    ["Pronouns", pair.base.pronouns, v.pronouns],
+                    ["Nationality statement", pair.base.nationality, v.nationality],
+                    ["Right to work in the UK (always held constant)", pair.base.rightToWork, v.rightToWork],
+                    ["Fictional name set", pair.base.nameSet, v.nameSet],
                   ];
                   return rows.map(([k, a, b]) => (
                     <tr key={k} className={a !== b ? "bg-amber-50" : ""}>
@@ -272,7 +276,9 @@ export default function FairnessLabPage() {
       + 0.15 × assessment
       − 6    if employment gap      ← injected bias
       − 3.5  if Region N            ← injected bias
-      (CV layout ignored)            ← control`}
+      − 4    if Non-UK national     ← injected bias
+      − 2.5  if fictional name set B ← injected bias
+      (CV layout, pronouns ignored)  ← controls`}
           </pre>
           <p className="mt-2 text-xs text-ink-2">
             This is DeepTrace&apos;s own demonstration engine — not Workday&apos;s or any vendor&apos;s algorithm. Testing a real system requires an authorised test interface (see the

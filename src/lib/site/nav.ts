@@ -18,6 +18,7 @@ export const MEGA_MENU: NavGroup[] = [
     label: "Product",
     items: [
       { label: "Platform Overview", href: "/platform", description: "How the modules fit together", icon: "layers" },
+      { label: "Multi-Agent Auditing", href: "/technology/multi-agent-ai", description: "Independent agents, verified evidence", icon: "users" },
       { label: "Fairness Audit Lab", href: "/platform#audit-lab", description: "Reproducible group-fairness statistics", icon: "chart" },
       { label: "Counterfactual Testing Studio", href: "/platform#counterfactual", description: "Matched synthetic CVs, one cue changed", icon: "flask" },
       { label: "Investigations", href: "/platform#investigations", description: "Human review with a full audit trail", icon: "scale" },
@@ -72,6 +73,7 @@ export const APP_NAV: { label: string; href: string; icon: IconName; section: "A
   { label: "Jobs", href: "/jobs", icon: "briefcase", section: "Audit" },
   { label: "Audit Lab", href: "/audits", icon: "chart", section: "Audit" },
   { label: "Counterfactual Studio", href: "/fairness-lab", icon: "flask", section: "Audit" },
+  { label: "Agent Observatory", href: "/agents", icon: "compass", section: "Audit" },
   { label: "Investigations", href: "/investigations", icon: "scale", section: "Governance" },
   { label: "Reports", href: "/reports", icon: "file", section: "Governance" },
   { label: "Bias Drift", href: "/drift", icon: "trend", section: "Governance" },

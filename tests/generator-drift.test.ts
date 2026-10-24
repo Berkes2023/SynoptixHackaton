@@ -7,6 +7,7 @@ import { parseCsv } from "@/lib/ingest/csv";
 import { autoMap } from "@/lib/ingest/mapping";
 import { validateAndMap } from "@/lib/ingest/validate";
 import { createAuthorisedExternalEngine, MockScreeningEngine } from "@/lib/adapters";
+import { NEUTRAL_PROFILE } from "@/lib/fairness/counterfactual";
 
 function importCsv(text: string) {
   const { headers, rows } = parseCsv(text);
@@ -113,7 +114,7 @@ describe("bias drift", () => {
 
 describe("adapters", () => {
   it("mock engine scores; external engine refuses without authorisation", async () => {
-    expect(await MockScreeningEngine.score({ id: "x", yearsExperience: 5, skillsMatch: 0.5, assessmentScore: 70, employmentGap: false, postcodeRegion: "Region S", cvFormat: "single-column" })).toBeGreaterThan(0);
+    expect(await MockScreeningEngine.score({ id: "x", yearsExperience: 5, skillsMatch: 0.5, assessmentScore: 70, ...NEUTRAL_PROFILE })).toBeGreaterThan(0);
     const ext = createAuthorisedExternalEngine({});
     expect(ext.authorised).toBe(false);
     await expect(ext.score({} as never)).rejects.toThrow(/not enabled/);

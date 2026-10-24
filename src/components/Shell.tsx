@@ -22,6 +22,7 @@ const CRUMB_LABELS: Record<string, string> = {
   investigations: "Investigations",
   reports: "Reports",
   drift: "Bias Drift",
+  agents: "Agent Observatory",
   settings: "Settings",
 };
 

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { AuditResult, DraftFinding, ScreeningRecord } from "./fairness/types";
 import type { Mapping } from "./ingest/mapping";
 import type { ValidationIssue } from "./ingest/validate";
+import type { WorkflowRun } from "./agents/contracts";
 
 export type Role = "Admin" | "Auditor" | "Reviewer" | "Read-only";
 
@@ -144,6 +145,8 @@ export interface State {
   reports: Report[];
   events: AuditEvent[];
   experiments: ExperimentRecord[];
+  /** Multi-agent audit workflows (persisted after every transition). */
+  workflows: WorkflowRun[];
   onboardingDismissed: boolean;
   settings: Settings;
 }
@@ -153,6 +156,7 @@ export function migrateState(raw: Partial<State>): State {
   const base = initialState();
   const s = { ...base, ...raw } as State;
   s.experiments = raw.experiments ?? [];
+  s.workflows = raw.workflows ?? [];
   // The synthetic audit group is a test-only category with no real personal data behind it.
   if (!s.settings.authorisedAttributes.includes("synthetic_group")) s.settings = { ...s.settings, authorisedAttributes: [...s.settings.authorisedAttributes, "synthetic_group"] };
   s.onboardingDismissed = raw.onboardingDismissed ?? false;
@@ -179,6 +183,7 @@ export const initialState = (): State => ({
   reports: [],
   events: [],
   experiments: [],
+  workflows: [],
   onboardingDismissed: false,
   settings: { minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, authorisedAttributes: ["gender", "age_band", "synthetic_group"] },
 });

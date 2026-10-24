@@ -5,6 +5,7 @@ import { SITE } from "@/lib/site/config";
 const PUBLIC_ROUTES = [
   "",
   "/platform",
+  "/technology/multi-agent-ai",
   "/demo",
   "/research",
   "/methodology",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RESUME_PACK, diffResumes, renderResume, yearsOfExperience } from "@/lib/data/resumes";
-import { applyCue, runCounterfactual, type SyntheticProfile } from "@/lib/fairness/counterfactual";
+import { NEUTRAL_PROFILE, applyCue, runCounterfactual, type SyntheticProfile } from "@/lib/fairness/counterfactual";
 
 const bases = RESUME_PACK.map((r) => ({ id: r.id, yearsExperience: yearsOfExperience(r) }));
 
@@ -26,17 +26,33 @@ describe("résumé pack", () => {
 
 describe("résumé diff", () => {
   const r = RESUME_PACK[0];
-  const profile: SyntheticProfile = { id: r.id, yearsExperience: yearsOfExperience(r), skillsMatch: 0.5, assessmentScore: 70, employmentGap: false, postcodeRegion: "Region S", cvFormat: "single-column" };
+  const profile: SyntheticProfile = { id: r.id, yearsExperience: yearsOfExperience(r), skillsMatch: 0.5, assessmentScore: 70, ...NEUTRAL_PROFILE };
 
   it.each([
     ["employmentGap", 0, 1, /Career break/],
     ["postcodeRegion", 1, 1, /Northfield/],
     ["cvFormat", 1, 1, /Two-column/],
+    ["pronouns", 1, 1, /she\/her/],
+    ["nationality", 1, 1, /Non-UK national/],
+    ["nameSet", 1, 1, /Name set B/],
+    ["pronounsXnationality", 2, 2, /she\/her|Non-UK/],
   ] as const)("cue %s changes only the expected lines", (cue, removed, added, pattern) => {
     const d = diffResumes(renderResume(r, applyCue(profile, cue, false)), renderResume(r, applyCue(profile, cue, true)));
     expect(d.removed.size).toBe(removed);
     expect(d.added.size).toBe(added);
     expect([...d.added][0]).toMatch(pattern);
+  });
+});
+
+describe("new cues and masking", () => {
+  it("never changes right to work, and masking removes the injected sensitivity", () => {
+    const nat = runCounterfactual({ cue: "nationality", pairCount: 60, seed: 3, threshold: 60, bases });
+    expect(nat.meanDelta).toBeCloseTo(-4, 1);
+    expect(nat.pairs.every((p) => p.base.rightToWork === "Yes")).toBe(true);
+    const masked = runCounterfactual({ cue: "nationality", pairCount: 60, seed: 3, threshold: 60, bases, mask: ["nationality"] });
+    expect(masked.meanDelta).toBe(0);
+    expect(runCounterfactual({ cue: "pronouns", pairCount: 60, seed: 3, threshold: 60, bases }).meanDelta).toBe(0);
+    expect(runCounterfactual({ cue: "pronounsXnationality", pairCount: 60, seed: 3, threshold: 60, bases }).meanDelta).toBeCloseTo(-4, 1);
   });
 });
 

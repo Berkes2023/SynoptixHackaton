@@ -275,6 +275,15 @@ export default function HomePage() {
           </table>
         </div>
         <p className="mt-3 text-xs text-muted">Many ATS and scoring vendors offer their own fairness features. DeepTrace complements them with an independent, provider-neutral view.</p>
+        <div className="mt-8 flex flex-col gap-4 rounded-xl border border-brand/30 bg-brand-soft p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-lg font-semibold">We don&apos;t build another AI recruiter. We build the systems that audit them.</div>
+            <p className="mt-1 text-sm text-ink-2">Eight bounded, deterministic auditing agents — with independent verification and a human approval gate.</p>
+          </div>
+          <Link href="/technology/multi-agent-ai" className="btn btn-primary shrink-0">
+            How multi-agent auditing works <Icon name="arrowRight" />
+          </Link>
+        </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Reproducible", "Same data and settings, same numbers — verified by dataset hash."],

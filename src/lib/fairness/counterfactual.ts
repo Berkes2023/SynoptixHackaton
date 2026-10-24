@@ -5,7 +5,7 @@ import { mulberry32 } from "../random";
  * Counterfactual Lab. Runs ONLY against DeepTrace's built-in mock screening
  * engine. Testing a real screening system requires an authorised test interface.
  */
-export const MOCK_ENGINE_VERSION = "mock-screener-0.3";
+export const MOCK_ENGINE_VERSION = "mock-screener-0.4";
 
 export interface SyntheticProfile {
   id: string;
@@ -15,9 +15,37 @@ export interface SyntheticProfile {
   employmentGap: boolean;
   postcodeRegion: "Region N" | "Region S";
   cvFormat: "single-column" | "two-column";
+  /** Gender-related cue shown on the CV (fictional). */
+  pronouns: "he/him" | "she/her";
+  /** Nationality statement. Distinct from citizenship, ethnicity and right to work. */
+  nationality: "UK national" | "Non-UK national";
+  /** Held constant in every experiment: right to work is a legitimate, separate question. */
+  rightToWork: "Yes";
+  /** One of two pre-registered FICTIONAL name sets. Never used to infer anyone's identity. */
+  nameSet: "Name set A" | "Name set B";
 }
 
-export type CounterfactualCue = "employmentGap" | "postcodeRegion" | "cvFormat";
+export type CounterfactualCue =
+  | "employmentGap"
+  | "postcodeRegion"
+  | "cvFormat"
+  | "pronouns"
+  | "nationality"
+  | "nameSet"
+  | "pronounsXnationality";
+
+/** Fields a mitigation strategy may hide from the scorer. */
+export type MaskableField = "employmentGap" | "postcodeRegion" | "pronouns" | "nationality" | "nameSet" | "cvFormat";
+
+export const NEUTRAL_PROFILE: Omit<SyntheticProfile, "id" | "yearsExperience" | "skillsMatch" | "assessmentScore"> = {
+  employmentGap: false,
+  postcodeRegion: "Region S",
+  cvFormat: "single-column",
+  pronouns: "he/him",
+  nationality: "UK national",
+  rightToWork: "Yes",
+  nameSet: "Name set A",
+};
 
 export const CUES: Record<CounterfactualCue, { label: string; description: string; from: string; to: string }> = {
   employmentGap: {
@@ -38,16 +66,45 @@ export const CUES: Record<CounterfactualCue, { label: string; description: strin
     from: "Single-column",
     to: "Two-column",
   },
+  pronouns: {
+    label: "Gender-related cue (pronouns)",
+    description: "A pronouns line on the CV. Tests sensitivity to a gender signal on fictional CVs — not anyone's actual gender.",
+    from: "he/him",
+    to: "she/her",
+  },
+  nationality: {
+    label: "Nationality statement",
+    description: "UK vs non-UK national. Right to work is held at \"Yes\" in both CVs: nationality, citizenship, ethnicity and right to work are different things.",
+    from: "UK national",
+    to: "Non-UK national",
+  },
+  nameSet: {
+    label: "Name variation (fictional sets)",
+    description: "Two pre-registered fictional name sets. A correspondence-test cue; no protected characteristic is inferred from any name.",
+    from: "Name set A",
+    to: "Name set B",
+  },
+  pronounsXnationality: {
+    label: "Intersectional: pronouns × nationality",
+    description: "Secondary experiment changing two cues together. Compare against each single-cue result before drawing conclusions.",
+    from: "he/him · UK national",
+    to: "she/her · Non-UK national",
+  },
 };
 
 /**
- * Deliberately imperfect mock screener: it penalises employment gaps and one
- * postcode region so the lab has something to detect. It ignores CV layout.
+ * Deliberately imperfect mock screener: it penalises employment gaps, one
+ * postcode region, the non-UK nationality statement and fictional name set B so
+ * the lab has something to detect. It ignores CV layout and pronouns.
+ * Masked fields are hidden from the scorer (as a redaction step would do).
  */
-export function mockScreeningScore(p: SyntheticProfile): number {
+export function mockScreeningScore(p: SyntheticProfile, mask: readonly MaskableField[] = []): number {
+  const hidden = new Set(mask);
   let s = 20 + Math.min(p.yearsExperience, 10) * 3 + p.skillsMatch * 35 + p.assessmentScore * 0.15;
-  if (p.employmentGap) s -= 6;
-  if (p.postcodeRegion === "Region N") s -= 3.5;
+  if (p.employmentGap && !hidden.has("employmentGap")) s -= 6;
+  if (p.postcodeRegion === "Region N" && !hidden.has("postcodeRegion")) s -= 3.5;
+  if (p.nationality === "Non-UK national" && !hidden.has("nationality")) s -= 4;
+  if (p.nameSet === "Name set B" && !hidden.has("nameSet")) s -= 2.5;
   return Math.round(Math.max(0, Math.min(100, s)) * 10) / 10;
 }
 
@@ -83,6 +140,14 @@ export function applyCue(p: SyntheticProfile, cue: CounterfactualCue, variant: b
       return { ...p, postcodeRegion: variant ? "Region N" : "Region S" };
     case "cvFormat":
       return { ...p, cvFormat: variant ? "two-column" : "single-column" };
+    case "pronouns":
+      return { ...p, pronouns: variant ? "she/her" : "he/him" };
+    case "nationality":
+      return { ...p, nationality: variant ? "Non-UK national" : "UK national" };
+    case "nameSet":
+      return { ...p, nameSet: variant ? "Name set B" : "Name set A" };
+    case "pronounsXnationality":
+      return applyCue(applyCue(p, "pronouns", variant), "nationality", variant);
   }
 }
 
@@ -103,6 +168,8 @@ export function runCounterfactual(opts: {
   seed: number;
   threshold: number;
   bases?: CounterfactualBase[];
+  /** Fields hidden from the scorer (mitigation experiments). Profiles themselves are unchanged. */
+  mask?: readonly MaskableField[];
 }): CounterfactualResult {
   const rand = mulberry32(opts.seed);
   const pairs: CounterfactualPair[] = [];
@@ -116,14 +183,12 @@ export function runCounterfactual(opts: {
       yearsExperience: source?.yearsExperience ?? generatedYears,
       skillsMatch: Math.round(rand() * 100) / 100,
       assessmentScore: Math.round(40 + rand() * 60),
-      employmentGap: false,
-      postcodeRegion: "Region S",
-      cvFormat: "single-column",
+      ...NEUTRAL_PROFILE,
     };
     const base = applyCue(profile, opts.cue, false);
     const variant = applyCue(profile, opts.cue, true);
-    const baseScore = mockScreeningScore(base);
-    const variantScore = mockScreeningScore(variant);
+    const baseScore = mockScreeningScore(base, opts.mask);
+    const variantScore = mockScreeningScore(variant, opts.mask);
     pairs.push({
       id: profile.id,
       base,

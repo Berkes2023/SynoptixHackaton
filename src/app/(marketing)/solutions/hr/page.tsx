@@ -138,6 +138,21 @@ export default function HrSolutionsPage() {
         </p>
       </Section>
 
+      <Section tone="sunken" eyebrow="Multi-agent auditing" title="Independent checks before anything reaches your desk.">
+        <p className="max-w-3xl text-ink-2">
+          Specialised agents validate the data, look for disparities, test sensitivity to irrelevant cues, and independently re-verify every figure. Then a named reviewer
+          approves the findings before any report is produced. Disagreements between agents are shown, not hidden.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/technology/multi-agent-ai" className="btn btn-secondary">
+            See how it works <Icon name="arrowRight" />
+          </Link>
+          <Link href="/agents" className="btn btn-ghost">
+            Open the Agent Observatory
+          </Link>
+        </div>
+      </Section>
+
       <CtaBand title="Walk through this case study yourself." body="Run the audit, open the investigation and generate the report in the guided demo." />
     </>
   );

@@ -57,6 +57,10 @@ export interface ResumeLine {
  */
 export function renderResume(r: PackResume, p: SyntheticProfile): ResumeLine[] {
   const lines: ResumeLine[] = [
+    { section: "meta", text: `Name: fictional placeholder from ${p.nameSet}` },
+    { section: "meta", text: `Pronouns: ${p.pronouns}` },
+    { section: "meta", text: `Nationality: ${p.nationality}` },
+    { section: "meta", text: `Right to work in the UK: ${p.rightToWork}` },
     { section: "meta", text: `Location: ${p.postcodeRegion === "Region N" ? "Northfield (Region N)" : "Southbridge (Region S)"}` },
     { section: "meta", text: `Layout: ${p.cvFormat === "two-column" ? "Two-column" : "Single-column"}` },
   ];

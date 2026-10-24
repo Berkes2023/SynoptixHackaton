@@ -9,4 +9,4 @@ export const SITE = {
 };
 
 /** Authenticated-app routes: excluded from the sitemap and disallowed in robots.txt. */
-export const APP_ROUTES = ["/dashboard", "/imports", "/jobs", "/audits", "/fairness-lab", "/investigations", "/reports", "/settings", "/drift"];
+export const APP_ROUTES = ["/dashboard", "/imports", "/jobs", "/audits", "/fairness-lab", "/investigations", "/reports", "/settings", "/drift", "/agents"];

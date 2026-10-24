@@ -89,6 +89,14 @@ export default function AuditDetailPage() {
             <button className="btn btn-secondary" onClick={reproduce}>
               Re-run &amp; verify
             </button>
+            {can("runAudit") && (
+              <Link
+                href={`/agents?job=${encodeURIComponent(c.jobRef)}&stage=${encodeURIComponent(c.stage)}&attr=${encodeURIComponent(c.groupingAttribute)}`}
+                className="btn btn-secondary"
+              >
+                Run multi-agent audit
+              </Link>
+            )}
             {can("generateReport") && (
               <button className="btn btn-primary" onClick={generateReport} disabled={busy}>
                 {busy ? "Generating…" : "Generate report"}
