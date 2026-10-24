@@ -1,5 +1,7 @@
 # DeepTrace
 
+*SynoptixHackaton submission.* Live demo: https://deeptrace-vert.vercel.app
+
 **Trace the decision. Detect the bias. Protect the candidate.**
 
 Independent AI recruitment fairness auditing — Sprint 1 MVP, built on synthetic data.
