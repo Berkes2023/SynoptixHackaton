@@ -30,6 +30,12 @@ export const SCENARIOS = {
   drift: { label: "Drift after version change", description: "Six months of data; scoring v2 (months 4–6) disadvantages Group B." },
 } as const;
 export type Scenario = keyof typeof SCENARIOS;
+const SCENARIO_CODES: Record<Scenario, string> = { balanced: "BAL", selection_disparity: "SEL", score_shift: "SCR", proxy_gap: "PRX", missing_data: "MIS", drift: "DRF" };
+
+/** Requisition reference a generated dataset will use. */
+export function generatedJobRef(opts: Pick<GeneratorOptions, "job" | "scenario" | "seed">): string {
+  return `${JOB_CATEGORIES[opts.job].ref}-${SCENARIO_CODES[opts.scenario]}-${opts.seed}`;
+}
 
 export interface GeneratorOptions {
   size: GeneratorSize;
@@ -86,7 +92,8 @@ export function generateDataset(opts: GeneratorOptions): GeneratedDataset {
   if (!(opts.scenario in SCENARIOS)) throw new RangeError("unknown scenario");
   const rand = mulberry32(Math.trunc(opts.seed) || 1);
   const job = JOB_CATEGORIES[opts.job];
-  const jobRef = `${job.ref}-${opts.seed}`;
+  // Scenario code in the IDs so datasets with the same seed never collide (and get silently merged) on import.
+  const jobRef = generatedJobRef(opts);
   // Drift spans exactly Jan–Jun 2026 by decision date (day 0 = 1 Jan; decisions ≤ day 180 = 30 Jun). v2 starts 1 Apr (day 90).
   const start = Date.UTC(2026, 0, 1);
   const span = opts.scenario === "drift" ? 179 : 60;
@@ -128,7 +135,7 @@ export function generateDataset(opts: GeneratorOptions): GeneratedDataset {
 
     const disclosed = opts.scenario === "missing_data" ? rand() >= 0.34 : rand() >= 0.03;
     const ageBand = rand() < 0.68 ? "Under 40" : "40 and over";
-    const appId = `APP-${job.ref}-${n}`;
+    const appId = `APP-${jobRef}-${n}`;
 
     applications.push({
       "Application ID": appId,

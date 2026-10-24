@@ -142,7 +142,9 @@ export function Footer() {
       </div>
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-muted sm:px-6">
-          <span>© {new Date().getFullYear()} DeepTrace prototype. Not affiliated with Workday or any ATS vendor.</span>
+          <span>
+            © {new Date().getFullYear()} DeepTrace prototype. Not affiliated with Workday or any ATS vendor. <span className="font-mono">v{process.env.NEXT_PUBLIC_BUILD_ID ?? "local"}</span>
+          </span>
           <span className="flex gap-4">
             <Link href="/privacy" className="hover:text-ink">Privacy</Link>
             <Link href="/security" className="hover:text-ink">Security</Link>

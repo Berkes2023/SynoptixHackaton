@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { SITE } from "@/lib/site/config";
+import { VersionGuard } from "@/components/VersionGuard";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         {children}
+        <VersionGuard />
       </body>
     </html>
   );

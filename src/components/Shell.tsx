@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Icon, Logo } from "./Icon";
 import { ThemeToggle } from "./ThemeToggle";
+import { BUILD_ID } from "./VersionGuard";
 import { APP_NAV } from "@/lib/site/nav";
 import { USERS, useStore, type Role } from "@/lib/store";
 
@@ -146,6 +147,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="flex-1 overflow-y-auto">{nav}</div>
         <div className="border-t border-line px-5 py-4 text-[11px] leading-relaxed text-muted">
           Read-only with respect to external ATS systems. DeepTrace never rejects candidates or alters scores.
+          <div className="mt-2 font-mono">Version {BUILD_ID}</div>
         </div>
       </aside>
 

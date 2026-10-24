@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GENERATOR_SIZES, datasetToCsv, datasetToJson, generateDataset, jsonToTable, type Scenario } from "@/lib/data/generator";
+import { GENERATOR_SIZES, generatedJobRef, datasetToCsv, datasetToJson, generateDataset, jsonToTable, type Scenario } from "@/lib/data/generator";
 import { runAudit } from "@/lib/fairness/audit";
 import { computeDrift } from "@/lib/fairness/drift";
 import type { AuditConfig } from "@/lib/fairness/types";
@@ -40,6 +40,14 @@ describe("synthetic dataset generator", () => {
     expect(datasetToCsv(generateDataset({ size: 250, job: "data", seed: 6, scenario: "proxy_gap" }))).not.toBe(a);
   });
 
+  it("uses distinct requisition and application IDs per scenario, so imports never collide", () => {
+    const a = generateDataset({ size: 100, job: "software", seed: 7, scenario: "balanced" });
+    const b = generateDataset({ size: 100, job: "software", seed: 7, scenario: "drift" });
+    expect(a.applications[0]["Job Req ID"]).not.toBe(b.applications[0]["Job Req ID"]);
+    const ids = new Set(a.applications.map((r) => r["Application ID"]));
+    expect(b.applications.some((r) => ids.has(r["Application ID"]))).toBe(false);
+  });
+
   it("rejects unsupported options", () => {
     expect(() => generateDataset({ size: 123 as never, job: "software", seed: 1, scenario: "balanced" })).toThrow();
     expect(() => generateDataset({ size: 100, job: "nope" as never, seed: 1, scenario: "balanced" })).toThrow();
@@ -63,7 +71,7 @@ describe("synthetic dataset generator", () => {
 
   const ratio = (scenario: Scenario) => {
     const ds = generateDataset({ size: 1000, job: "software", seed: 42, scenario });
-    const r = runAudit(importCsv(datasetToCsv(ds)).records, cfg(`SYN-SWE-42`));
+    const r = runAudit(importCsv(datasetToCsv(ds)).records, cfg(generatedJobRef({ job: "software", scenario, seed: 42 })));
     return r.comparisons[0]?.ratio ?? null;
   };
 
@@ -77,7 +85,7 @@ describe("synthetic dataset generator", () => {
 
   it("missing_data scenario raises a coverage finding and never groups missing values", () => {
     const ds = generateDataset({ size: 1000, job: "software", seed: 42, scenario: "missing_data" });
-    const r = runAudit(importCsv(datasetToCsv(ds)).records, cfg("SYN-SWE-42"));
+    const r = runAudit(importCsv(datasetToCsv(ds)).records, cfg(generatedJobRef({ job: "software", scenario: "missing_data", seed: 42 })));
     expect(r.groups.map((g) => g.group)).toEqual(["Group A", "Group B"]);
     expect(r.sample.missingAttributeRate).toBeGreaterThan(0.25);
     expect(r.findings.some((f) => f.key === "data:missing-attribute")).toBe(true);
@@ -89,7 +97,7 @@ describe("bias drift", () => {
   const records = importCsv(datasetToCsv(ds)).records;
 
   it("by scoring version: v1 fair, v2 below threshold, with an alert", () => {
-    const { periods, alerts } = computeDrift(records, cfg("SYN-SWE-42"), "scoringVersion");
+    const { periods, alerts } = computeDrift(records, cfg(generatedJobRef({ job: "software", scenario: "drift", seed: 42 })), "scoringVersion");
     expect(periods.map((p) => p.period)).toEqual(["v1", "v2"]);
     expect(periods[0].ratio!).toBeGreaterThan(0.8);
     expect(periods[1].ratio!).toBeLessThan(0.8);
@@ -97,9 +105,9 @@ describe("bias drift", () => {
   });
 
   it("by month: six periods, deterministic", () => {
-    const a = computeDrift(records, cfg("SYN-SWE-42"), "month");
+    const a = computeDrift(records, cfg(generatedJobRef({ job: "software", scenario: "drift", seed: 42 })), "month");
     expect(a.periods).toHaveLength(6);
-    expect(computeDrift([...records].reverse(), cfg("SYN-SWE-42"), "month")).toEqual(a);
+    expect(computeDrift([...records].reverse(), cfg(generatedJobRef({ job: "software", scenario: "drift", seed: 42 })), "month")).toEqual(a);
   });
 });
 

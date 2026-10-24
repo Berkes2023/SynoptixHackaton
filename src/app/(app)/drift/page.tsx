@@ -95,7 +95,7 @@ export default function DriftPage() {
       ],
     }));
     log("import.committed", `import:${id}`, `Synthetic drift time series (1,000 candidates, seed 2026)`);
-    setJobRef("SYN-SWE-2026");
+    setJobRef(ds.applications[0]["Job Req ID"] as string);
     setAttrPick("synthetic_group");
   }
 
