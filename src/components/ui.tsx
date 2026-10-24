@@ -8,7 +8,8 @@ export const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 export const shortHash = (h: string) => `${h.slice(0, 12)}…`;
 export const stageLabel = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-export const attrLabel = (a: string) => (a === "age_band" ? "Age band" : a.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()));
+export const attrLabel = (a: string) =>
+  a === "age_band" ? "Age band" : a === "synthetic_group" ? "Synthetic audit group" : a.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (

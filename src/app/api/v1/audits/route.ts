@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { ENGINE_VERSION, METHODOLOGY_VERSION, runAudit, SUPPORTED_AUDIT_ATTRIBUTES } from "@/lib/fairness/audit";
 import type { AuditConfig, MetricName, ScreeningRecord } from "@/lib/fairness/types";
 import { canonicalDataset, sha256Hex } from "@/lib/hash";
+import { clientKey, createRateLimiter } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
 const METRICS: MetricName[] = ["selection_rate", "selection_rate_ratio", "score_distribution"];
 const MAX_RECORDS = 50_000;
+const MAX_BYTES = 4_000_000; // Vercel functions accept ~4.5 MB bodies
+const limiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -19,9 +22,16 @@ function bad(message: string, status = 400) {
  * sensitive fields are stripped here before analysis.
  */
 export async function POST(req: Request) {
+  const rl = limiter.check(clientKey(req));
+  if (!rl.allowed) return NextResponse.json({ error: "Too many audit requests. Please wait a moment." }, { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } });
+  const len = Number(req.headers.get("content-length") ?? 0);
+  if (len > MAX_BYTES) return bad("Request too large.", 413);
+
   let body: { config?: Partial<AuditConfig>; authorisedAttributes?: unknown; records?: unknown };
   try {
-    body = await req.json();
+    const text = await req.text();
+    if (text.length > MAX_BYTES) return bad("Request too large.", 413);
+    body = JSON.parse(text);
   } catch {
     return bad("Body must be JSON.");
   }

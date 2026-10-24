@@ -20,6 +20,8 @@ export const STANDARD_FIELDS: FieldDef[] = [
   { key: "decision", label: "Screening decision", required: true, synonyms: ["screening decision", "decision", "outcome", "status", "disposition"] },
   { key: "decisionAt", label: "Decision timestamp", required: true, synonyms: ["decision date", "decision at", "decision timestamp", "occurred at", "screened at"] },
   { key: "sourceSystem", label: "Source system", required: true, synonyms: ["source system", "source", "system", "ats"] },
+  { key: "scoringVersion", label: "Scoring version", required: false, synonyms: ["scoring version", "model version", "score version", "algorithm version"] },
+  { key: "sensitive.synthetic_group", label: "Audit group (synthetic)", required: false, sensitive: true, synonyms: ["audit group synthetic", "synthetic group", "audit group"] },
   { key: "sensitive.gender", label: "Gender (self-reported)", required: false, sensitive: true, synonyms: ["gender self reported", "gender", "sex"] },
   { key: "sensitive.age_band", label: "Age band (self-reported)", required: false, sensitive: true, synonyms: ["age band self reported", "age band", "age group"] },
 ];

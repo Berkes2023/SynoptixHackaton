@@ -28,8 +28,9 @@ describe("synthetic dataset import", () => {
   const mapping = autoMap(headers);
   const { records, report } = validateAndMap(headers, rows, mapping);
 
-  it("auto-maps every standard field and drops unmapped columns", () => {
-    expect(Object.values(mapping).every((v) => v != null)).toBe(true);
+  it("auto-maps every field present in the export and drops unmapped columns", () => {
+    const absent = ["scoringVersion", "sensitive.synthetic_group"];
+    expect(Object.entries(mapping).filter(([k]) => !absent.includes(k)).every(([, v]) => v != null)).toBe(true);
     expect(report.droppedColumns).toEqual(["Recruiter Notes"]);
   });
 

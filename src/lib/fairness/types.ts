@@ -12,6 +12,8 @@ export interface ScreeningRecord {
   decision: string | null;
   decisionAt: string;
   sourceSystem: string;
+  /** Version of the ATS scoring model that produced the score, when exported. */
+  scoringVersion?: string | null;
   /** Self-reported audit categories only. Never inferred. Missing stays null. */
   sensitive: Record<string, string | null>;
   importId?: string;
@@ -85,6 +87,16 @@ export interface ScoreComparison {
 
 export type FindingCategory = "selection_disparity" | "score_disparity" | "data_quality" | "suppression";
 
+/** Plain-English account of a finding for non-technical reviewers. */
+export interface FindingExplanation {
+  measured: string;
+  dataUsed: string;
+  groupsCompared: string;
+  trigger: string;
+  cannotConclude: string[];
+  nextSteps: string[];
+}
+
 export interface DraftFinding {
   key: string;
   severity: Severity;
@@ -94,6 +106,8 @@ export interface DraftFinding {
   evidence: string[];
   limitations: string[];
   recommendedActions: string[];
+  /** Optional only for findings stored by earlier versions. */
+  explanation?: FindingExplanation;
 }
 
 export type AuditFlag = "investigation_recommended" | "no_flag" | "insufficient_data";

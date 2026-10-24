@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   generateReport: ["Admin", "Auditor"],
   viewRawSensitive: ["Admin"],
   managePolicies: ["Admin"],
+  deleteData: ["Admin"],
 } satisfies Record<string, Role[]>;
 export type Permission = keyof typeof PERMISSIONS;
 
@@ -52,7 +53,7 @@ export interface AuditRun {
   result: AuditResult;
 }
 
-export type FindingStatus = "open" | "investigating" | "resolved";
+export type FindingStatus = "open" | "investigating" | "resolved" | "inconclusive";
 export interface Finding extends DraftFinding {
   id: string;
   auditId: string;
@@ -61,15 +62,48 @@ export interface Finding extends DraftFinding {
 }
 
 export type Resolution = "" | "explained_by_job_related_factors" | "remediation_required" | "data_quality_issue" | "no_action_required";
+export type InvestigationStatus = "open" | "under_review" | "more_evidence_required" | "resolved" | "inconclusive";
+export const INVESTIGATION_STATUS_LABEL: Record<InvestigationStatus, string> = {
+  open: "Open",
+  under_review: "Under review",
+  more_evidence_required: "More evidence required",
+  resolved: "Resolved",
+  inconclusive: "Inconclusive",
+};
+export interface EvidenceRef {
+  id: string;
+  label: string;
+  /** A document reference or https link. Files are not uploaded in the demo. */
+  reference: string;
+  addedBy: string;
+  at: string;
+}
 export interface Investigation {
   id: string;
   findingId: string;
   owner: string;
-  status: "open" | "in_review" | "resolved";
+  status: InvestigationStatus;
   resolution: Resolution;
+  rationale: string;
+  evidence: EvidenceRef[];
   notes: { author: string; text: string; at: string }[];
+  closedBy?: string;
+  closedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ExperimentRecord {
+  id: string;
+  at: string;
+  by: string;
+  cue: string;
+  source: string;
+  pairs: number;
+  seed: number;
+  meanDelta: number;
+  flips: number;
+  signTestP: number;
 }
 
 export interface Report {
@@ -109,7 +143,26 @@ export interface State {
   investigations: Investigation[];
   reports: Report[];
   events: AuditEvent[];
+  experiments: ExperimentRecord[];
+  onboardingDismissed: boolean;
   settings: Settings;
+}
+
+/** Bring workspaces saved by earlier versions up to the current shape. */
+export function migrateState(raw: Partial<State>): State {
+  const base = initialState();
+  const s = { ...base, ...raw } as State;
+  s.experiments = raw.experiments ?? [];
+  // The synthetic audit group is a test-only category with no real personal data behind it.
+  if (!s.settings.authorisedAttributes.includes("synthetic_group")) s.settings = { ...s.settings, authorisedAttributes: [...s.settings.authorisedAttributes, "synthetic_group"] };
+  s.onboardingDismissed = raw.onboardingDismissed ?? false;
+  s.investigations = (raw.investigations ?? []).map((i) => ({
+    ...i,
+    status: ((i.status as string) === "in_review" ? "under_review" : i.status) as InvestigationStatus,
+    rationale: i.rationale ?? "",
+    evidence: i.evidence ?? [],
+  }));
+  return s;
 }
 
 const STORAGE_KEY = "deeptrace-demo-v1";
@@ -125,7 +178,9 @@ export const initialState = (): State => ({
   investigations: [],
   reports: [],
   events: [],
-  settings: { minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, authorisedAttributes: ["gender", "age_band"] },
+  experiments: [],
+  onboardingDismissed: false,
+  settings: { minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, authorisedAttributes: ["gender", "age_band", "synthetic_group"] },
 });
 
 export const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -152,7 +207,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as State;
-        if (parsed.schemaVersion === 1) setState(parsed);
+        if (parsed.schemaVersion === 1) setState(migrateState(parsed));
       }
     } catch {
       /* storage unavailable: run in-memory */

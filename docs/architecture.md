@@ -1,28 +1,28 @@
-# Architecture
-
-## Sprint 1 (deployed on Vercel)
+# Architecture — DeepTrace 2.0
 
 ```
-Browser (Next.js client pages)
-  ├─ Data Hub: CSV parse → field mapping → validation → commit (browser workspace)
-  ├─ Audit Lab ── POST /api/v1/audits ──► Vercel function → fairness engine (pure TS)
-  ├─ Investigations / Reports (JSON + print-to-PDF, SHA-256 checksum)
-  └─ Counterfactual Lab → mock screening engine (in browser)
-API: GET /api/v1/health · GET /api/v1/sample-dataset · POST /api/v1/audits
+src/app/(marketing)   public site — server components, statically generated, indexed
+src/app/(app)         workspace — client pages, StoreProvider + Shell, noindex, disallowed in robots.txt
+src/app/api/v1        health · sample-dataset · audits (POST) · contact (POST)
+src/lib/fairness      audit engine, stats, drift, counterfactual (pure, deterministic, tested)
+src/lib/data          sample export, generator, résumé pack
+src/lib/adapters      provider-neutral source adapters + screening-engine adapters (read-only)
+src/lib/site          research register, security-control register, nav, demo data
+src/lib/security      rate limiter, safe evidence links
 ```
 
-Why: Vercel hosts the demo with zero infrastructure and no real personal data at rest. Workspace state lives in each visitor's browser, so visitors never see each other's data.
+Workspace state is per browser (localStorage, versioned with `migrateState`). Audit requests send only in-scope records and the single analysed category; the API re-validates category authorisation, strips other sensitive fields, enforces size and rate limits, and returns results plus a dataset hash.
 
-## Gaps vs. the PRD target, in order
+## Gaps vs. a production deployment
 
-| PRD requirement | Sprint 1 | Next step |
+| Requirement | Today | Next step |
 |---|---|---|
-| PostgreSQL, tenant-scoped tables, RLS | Browser workspace per visitor | Postgres (e.g. Neon/Supabase) with the PRD schema + RLS + cross-tenant tests |
-| OIDC auth, MFA, RBAC | Demo role switcher; permissions checked in UI; API checks category authorisation | OIDC provider; enforce roles server-side |
-| Celery + Redis async jobs | Synchronous API (audits take milliseconds) | Queue for large datasets |
-| Encrypted sensitive-attribute store | Masked in UI for non-Admins; minimised in API payloads | Separate schema / column encryption with KMS |
-| WeasyPrint PDFs, object storage, expiring links | Print-to-PDF + JSON with checksum | Server-side PDF, signed URLs |
-| Append-only audit events | In-workspace event log | DB table with insert-only grants and hash chaining |
-| Python fairness engine (pandas/SciPy/Fairlearn) | TypeScript engine validated against reference values | Port or cross-validate against SciPy in CI |
-
-The engine's inputs/outputs (`src/lib/fairness/types.ts`) are the contract to keep when moving to the Python service.
+| Authentication, MFA | Demo role switcher | OIDC provider; server-side RBAC on every route |
+| Tenant isolation | Per-browser workspace | Postgres with tenant-scoped tables, RLS, cross-tenant tests |
+| Encrypted sensitive store | Masked in UI, minimised in API | Separate schema / column encryption with managed keys |
+| Reports | Print-to-PDF + JSON with checksum | Server-side PDF, signed expiring links |
+| Audit log | Append-only in workspace | Server-side insert-only table with hash chaining |
+| Rate limiting | In-memory per instance | Shared store (Redis/Upstash) |
+| CSP | `'unsafe-inline'` scripts | Nonce-based CSP via middleware |
+| Testing | Vitest unit + API tests | Playwright E2E, axe accessibility checks, visual regression |
+| Integrations | CSV, JSON, mock Workday-style | Authorised, documented customer integrations only |

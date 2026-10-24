@@ -13,6 +13,7 @@ import type {
   AuditFlag,
   AuditResult,
   DraftFinding,
+  FindingExplanation,
   GroupMetric,
   ScoreComparison,
   ScreeningRecord,
@@ -23,7 +24,7 @@ export const METHODOLOGY_VERSION = "dt-fairness-1.0.0";
 export const ENGINE_VERSION = "0.1.0";
 
 /** Audit categories the platform supports. Each organisation must additionally authorise them. */
-export const SUPPORTED_AUDIT_ATTRIBUTES = ["gender", "age_band"] as const;
+export const SUPPORTED_AUDIT_ATTRIBUTES = ["gender", "age_band", "synthetic_group"] as const;
 
 const POSITIVE_DECISIONS = new Set(["advance", "advanced", "shortlist", "shortlisted", "selected", "progress", "progressed", "pass", "passed"]);
 const NEGATIVE_DECISIONS = new Set(["reject", "rejected", "decline", "declined", "not selected", "not_selected", "fail", "failed"]);
@@ -242,6 +243,73 @@ export function runAudit(records: ScreeningRecord[], config: AuditConfig): Audit
   };
 }
 
+const NOT_PROOF = "Whether unlawful discrimination occurred — that is a legal question statistics cannot settle.";
+
+/** Plain-English explanation attached to every finding. Derived only from computed values. */
+function explain(f: DraftFinding, input: Parameters<typeof buildFindings>[0]): FindingExplanation {
+  const { config, groups, comparisons, scoreComparisons } = input;
+  const attr = config.groupingAttribute.replace(/_/g, " ");
+  const scope = `${input.scopedCount} recorded decisions for job ${config.jobRef} at the "${config.stage.replace(/_/g, " ")}" stage, grouped by self-reported ${attr}.`;
+  if (f.category === "selection_disparity") {
+    const c = comparisons.find((x) => `selection:${x.group}` === f.key)!;
+    const g = groups.find((x) => x.group === c.group)!;
+    const r = groups.find((x) => x.group === c.reference)!;
+    return {
+      measured: `The share of applicants in each group who were advanced (the "selection rate"), and how the ${c.group} rate compares with the highest-rate group.`,
+      dataUsed: scope,
+      groupsCompared: `${c.group} (${g.selected} of ${g.n} advanced) against ${c.reference} (${r.selected} of ${r.n}), the group with the highest selection rate.`,
+      trigger: c.belowThreshold
+        ? `${c.group} applicants were advanced at ${(c.ratio! * 100).toFixed(0)}% of the ${c.reference} rate, below the ${config.impactThreshold * 100}% screening rule of thumb.${c.adjustedP < config.alpha ? " The gap is also larger than chance would usually produce, even after allowing for the number of tests run." : " However, after allowing for the number of tests run, a gap this size could plausibly be chance."}`
+        : `The gap is larger than chance would usually produce (adjusted p = ${fmtP(c.adjustedP)}), although the ratio is above the rule of thumb.`,
+      cannotConclude: [
+        "Why the difference exists — job-related requirements, applicant pools or the screening configuration could all contribute.",
+        NOT_PROOF,
+        "Anything about other jobs, stages or time periods.",
+      ],
+      nextSteps: f.recommendedActions,
+    };
+  }
+  if (f.category === "score_disparity") {
+    const s = scoreComparisons.find((x) => `score:${x.group}` === f.key)!;
+    return {
+      measured: "The ATS scores recorded for each group, compared as whole distributions rather than just averages.",
+      dataUsed: `${scope} Records without a score are excluded.`,
+      groupsCompared: `${s.group} against ${s.reference}.`,
+      trigger: `${s.group} scores were ${Math.abs(s.meanDifference).toFixed(1)} points ${s.meanDifference < 0 ? "lower" : "higher"} on average, and the distributions differ by more than chance would usually explain.`,
+      cannotConclude: ["Whether the scoring model treats otherwise-equal candidates differently — that needs a controlled counterfactual test.", NOT_PROOF],
+      nextSteps: f.recommendedActions,
+    };
+  }
+  if (f.key === "data:missing-attribute") {
+    return {
+      measured: `How many applicants did not provide a self-reported ${attr}.`,
+      dataUsed: scope,
+      groupsCompared: "Not applicable — this is a data-coverage check.",
+      trigger: `${(input.missingAttributeRate * 100).toFixed(1)}% of records have no value, above DeepTrace's 5% coverage threshold.`,
+      cannotConclude: ["How the missing applicants would have been grouped — DeepTrace never guesses or infers.", "Whether group comparisons for this stage are representative."],
+      nextSteps: f.recommendedActions,
+    };
+  }
+  if (f.key === "data:missing-score") {
+    return {
+      measured: "How many decisions were recorded without an ATS score.",
+      dataUsed: scope,
+      groupsCompared: "Not applicable — this is a data-coverage check.",
+      trigger: `${input.missingScore} records lack a score.`,
+      cannotConclude: ["Whether the missing scores would change the score analysis."],
+      nextSteps: f.recommendedActions,
+    };
+  }
+  return {
+    measured: "Whether each group is large enough to report safely.",
+    dataUsed: scope,
+    groupsCompared: groups.filter((g) => g.suppressed).map((g) => g.group).join(", ") + " (suppressed).",
+    trigger: `Fewer than ${config.minimumGroupSize} analysed applications in the group(s) listed.`,
+    cannotConclude: ["Anything about the suppressed groups' outcomes in this audit."],
+    nextSteps: f.recommendedActions,
+  };
+}
+
 function buildFindings(input: {
   config: AuditConfig;
   groups: GroupMetric[];
@@ -359,6 +427,8 @@ function buildFindings(input: {
       recommendedActions: ["Confirm with the ATS administrator why scores are absent."],
     });
   }
+
+  for (const f of findings) f.explanation = explain(f, input);
 
   const order = { high: 0, medium: 1, low: 2, info: 3 } as const;
   return findings.sort((a, b) => order[a.severity] - order[b.severity] || a.key.localeCompare(b.key));

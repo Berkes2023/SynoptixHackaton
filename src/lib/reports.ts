@@ -29,10 +29,32 @@ export async function buildReport(state: State, audit: AuditRun, generatedBy: st
         recommended_actions: f.recommendedActions,
         status: f.status,
         investigation: inv
-          ? { id: inv.id, owner: inv.owner, status: inv.status, resolution: inv.resolution || null, reviewer_notes: inv.notes, updated_at: inv.updatedAt }
+          ? {
+              id: inv.id,
+              owner: inv.owner,
+              status: inv.status,
+              resolution: inv.resolution || null,
+              rationale: inv.rationale || null,
+              closed_by: inv.closedBy ?? null,
+              closed_at: inv.closedAt ?? null,
+              evidence: inv.evidence.map((e) => ({ label: e.label, reference: e.reference, added_by: e.addedBy, at: e.at })),
+              reviewer_notes: inv.notes,
+              updated_at: inv.updatedAt,
+            }
           : null,
+        explanation: f.explanation ?? null,
       };
     });
+  const recommendations = [
+    ...new Set(
+      findings
+        .filter((f) => f.severity !== "info" && f.status !== "resolved" && f.status !== "inconclusive")
+        .flatMap((f) => f.recommended_actions),
+    ),
+  ];
+  if (findings.some((f) => f.investigation?.resolution === "remediation_required"))
+    recommendations.unshift("Track agreed remediation and re-run this audit with the same configuration to confirm the effect.");
+  if (recommendations.length === 0) recommendations.push("Re-run this audit periodically (e.g. quarterly) and monitor drift between periods.");
   const imports = state.imports.filter((i) => audit.importIds.includes(i.id));
   const payload = {
     report_format: REPORT_FORMAT_VERSION,
@@ -75,7 +97,14 @@ export async function buildReport(state: State, audit: AuditRun, generatedBy: st
       conclusion: audit.result.conclusion,
     },
     findings,
+    recommendations,
     limitations: audit.result.limitations,
+    versions: {
+      report_format: REPORT_FORMAT_VERSION,
+      methodology: audit.result.methodologyVersion,
+      engine: audit.result.engineVersion,
+      application: "deeptrace-2.0.0",
+    },
   };
   const checksum = await sha256Hex(JSON.stringify(payload));
   return { payload, checksum };

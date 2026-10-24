@@ -129,6 +129,7 @@ export function validateAndMap(headers: string[], rows: string[][], mapping: Map
       decision: decision || null,
       decisionAt: decisionAt!,
       sourceSystem: get(row, "sourceSystem"),
+      ...(mapping.scoringVersion ? { scoringVersion: get(row, "scoringVersion") || null } : {}),
       sensitive,
     });
   });

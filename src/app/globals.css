@@ -1,51 +1,173 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --color-ink: #0b0b0b;
-  --color-ink-2: #52514e;
-  --color-muted: #898781;
-  --color-line: #e1e0d9;
-  --color-plane: #f6f6f3;
-  --color-surface: #fcfcfb;
-  --color-brand: #1c5cab;
-  --color-brand-soft: #e8f0fb;
+/* ------------------------------------------------------------------
+   DeepTrace design tokens. Components use semantic names (surface,
+   ink, line, brand…); light and dark values are defined once here.
+   ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #fbfbfa;
+  --surface-sunken: #f1f1ee;
+  --ink: #0f0f10;
+  --ink-2: #4d4c48;
+  --muted: #7d7b75;
+  --line: #e4e3dd;
+  --line-strong: #cfcdc5;
+  --brand: #1c5cab;
+  --brand-hover: #184f95;
+  --brand-soft: #eaf1fb;
+  --on-brand: #ffffff;
+  --focus: #2a78d6;
+  --critical: #c23434;
+  --shadow: 0 1px 2px rgba(16, 16, 16, 0.04), 0 1px 1px rgba(16, 16, 16, 0.02);
+  --shadow-lg: 0 12px 32px -8px rgba(16, 16, 16, 0.16), 0 2px 6px rgba(16, 16, 16, 0.06);
+  /* chart chrome */
+  --chart-grid: #e4e3dd;
+  --chart-axis: #c3c2b7;
+  --chart-tick: #52514e;
+}
+
+/* Dark: own steps, not an inversion. Status tints are remapped so the
+   same utility classes (bg-red-50, text-green-900 …) read well. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0c0c0d;
+    --surface: #151517;
+    --surface-2: #1b1b1e;
+    --surface-sunken: #111113;
+    --ink: #f0efec;
+    --ink-2: #b9b8b0;
+    --muted: #8c8a84;
+    --line: #2a2a2d;
+    --line-strong: #3a3a3e;
+    --brand: #3d88e0;
+    --brand-hover: #5598e7;
+    --brand-soft: #14243a;
+    --on-brand: #ffffff;
+    --focus: #6da7ec;
+    --critical: #ef6b6b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 16px 40px -8px rgba(0, 0, 0, 0.7);
+    --chart-grid: #2c2c2a;
+    --chart-axis: #3a3a37;
+    --chart-tick: #b9b8b0;
+    --color-white: #1b1b1e;
+    --color-red-50: #2a1415; --color-red-100: #351819; --color-red-200: #5a2427; --color-red-300: #7a2f33; --color-red-800: #f3a5a5; --color-red-900: #f8c4c4;
+    --color-green-50: #10221a; --color-green-100: #132a1f; --color-green-200: #1d4a33; --color-green-300: #276041; --color-green-800: #8fd9ad; --color-green-900: #b5e8c9;
+    --color-amber-50: #2a2010; --color-amber-100: #3a2b10; --color-amber-200: #5a4214; --color-amber-300: #74561a; --color-amber-800: #f3cf7a; --color-amber-900: #f7dd9e;
+    --color-orange-50: #2b1a10; --color-orange-200: #5b3418; --color-orange-800: #f5b48a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0c0d;
+  --surface: #151517;
+  --surface-2: #1b1b1e;
+  --surface-sunken: #111113;
+  --ink: #f0efec;
+  --ink-2: #b9b8b0;
+  --muted: #8c8a84;
+  --line: #2a2a2d;
+  --line-strong: #3a3a3e;
+  --brand: #3d88e0;
+  --brand-hover: #5598e7;
+  --brand-soft: #14243a;
+  --on-brand: #ffffff;
+  --focus: #6da7ec;
+  --critical: #ef6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 40px -8px rgba(0, 0, 0, 0.7);
+  --chart-grid: #2c2c2a;
+  --chart-axis: #3a3a37;
+  --chart-tick: #b9b8b0;
+  --color-white: #1b1b1e;
+  --color-red-50: #2a1415; --color-red-100: #351819; --color-red-200: #5a2427; --color-red-300: #7a2f33; --color-red-800: #f3a5a5; --color-red-900: #f8c4c4;
+  --color-green-50: #10221a; --color-green-100: #132a1f; --color-green-200: #1d4a33; --color-green-300: #276041; --color-green-800: #8fd9ad; --color-green-900: #b5e8c9;
+  --color-amber-50: #2a2010; --color-amber-100: #3a2b10; --color-amber-200: #5a4214; --color-amber-300: #74561a; --color-amber-800: #f3cf7a; --color-amber-900: #f7dd9e;
+  --color-orange-50: #2b1a10; --color-orange-200: #5b3418; --color-orange-800: #f5b48a;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-plane: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sunken: var(--surface-sunken);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-critical: var(--critical);
   --color-series-1: #2a78d6;
   --color-series-2: #eb6834;
   --color-series-3: #1baf7a;
   --color-good: #0ca30c;
   --color-warning: #fab219;
   --color-serious: #ec835a;
-  --color-critical: #d03b3b;
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
 }
 
 html,
 body {
-  background: var(--color-plane);
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--ink);
+}
+body {
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--brand-soft);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
+/* Component classes sit in the components layer so utilities (e.g. lg:hidden) can override them. */
+@layer components {
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply bg-brand text-white hover:bg-[#184f95];
+  @apply bg-brand text-on-brand hover:bg-brand-hover;
 }
 .btn-secondary {
-  @apply border border-line bg-white text-ink hover:bg-plane;
+  @apply border border-line bg-surface text-ink hover:bg-sunken;
+}
+.btn-ghost {
+  @apply text-ink-2 hover:bg-sunken hover:text-ink;
+}
+.btn-lg {
+  @apply px-5 py-2.5 text-[15px];
 }
 .card {
-  @apply rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)];
+  @apply rounded-xl border border-line bg-surface p-5 shadow-card;
 }
 .input {
-  @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+  @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/25 disabled:opacity-60;
 }
 .label {
   @apply mb-1 block text-xs font-medium uppercase tracking-wide text-ink-2;
+}
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand;
 }
 .table {
   @apply w-full text-left text-sm;
@@ -56,10 +178,69 @@ body {
 .table td {
   @apply border-b border-line/70 px-3 py-2 align-top;
 }
+.skeleton {
+  @apply animate-pulse rounded-md bg-sunken;
+}
+} /* end @layer components */
+
+/* Chart chrome follows the theme (CSS beats SVG presentation attributes). */
+.recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+.recharts-cartesian-axis-line {
+  stroke: var(--chart-axis);
+}
+.recharts-cartesian-axis-tick-value,
+.recharts-label {
+  fill: var(--chart-tick);
+}
+.recharts-legend-item-text {
+  color: var(--ink-2) !important;
+}
+.recharts-errorBar line {
+  stroke: var(--ink);
+}
+.recharts-reference-line-line {
+  stroke: var(--muted);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: fade-up 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 @media print {
   .no-print {
     display: none !important;
+  }
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #fff;
+    --ink: #000;
+    --ink-2: #333;
+    --line: #ddd;
+    color-scheme: light;
   }
   html,
   body {
@@ -69,5 +250,11 @@ body {
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
+  }
+  .print-break {
+    break-before: page;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
   }
 }
