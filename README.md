@@ -10,7 +10,9 @@ DeepTrace independently examines AI-assisted recruitment outcomes recorded by an
 
 **Public site** (`src/app/(marketing)`): homepage (14 sections, live mini-audit), mega menu with keyboard support and a mobile drawer, `/platform`, `/solutions/hr` (case study computed live) plus four persona pages, `/research` (searchable, source-verified library), `/methodology`, `/responsible-ai`, `/security` (honest control register), `/privacy`, `/about`, `/contact` (server-validated, rate-limited, honeypot) and `/demo` (10-step guided audit, no sign-up).
 
-**Workspace** (`src/app/(app)`, `noindex`): Overview with onboarding, Data Hub (CSV/JSON, drag-and-drop, mapping, validation, synthetic generator, Admin deletion), Jobs, Audit Lab, Counterfactual Testing Studio, Investigation Centre (5 statuses, evidence references, required rationale, event history), executive Reports (cover page, chart, recommendations, versions, checksum) and Bias Drift. Also: ⌘K / Ctrl+K command palette, breadcrumbs, light/dark/system theme, demo RBAC roles.
+**Workspace** (`src/app/(app)`, `noindex`): Overview with onboarding, Data Hub (CSV/JSON, drag-and-drop, mapping, validation, synthetic generator, Admin deletion), Jobs, Audit Lab, Counterfactual Testing Studio, Investigation Centre (5 statuses, evidence references, required rationale, event history), executive Reports (cover page, chart, recommendations, versions, checksum) and Bias Drift. Also: ⌘K / Ctrl+K command palette, breadcrumbs, light/dark/system theme, Agent Observatory (multi-agent audits).
+
+**Accounts** (optional, Supabase): sign-up/sign-in, organisations with Admin/Auditor/Reviewer/Read-only members, the workspace and workflows stored server-side behind row-level security, and a server-attributed append-only audit log. Without Supabase configured the workspace is a browser-only demo with switchable roles. See `docs/accounts-and-storage.md`.
 
 **Engine** (`src/lib/fairness`): deterministic and tested. Wilson CIs, impact ratio with Katz CI, Fisher exact, Mann–Whitney U, Holm correction, suppression, missingness, plain-English explanations per finding, drift by month or scoring version, and counterfactual pairs.
 
@@ -27,13 +29,13 @@ DeepTrace independently examines AI-assisted recruitment outcomes recorded by an
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 73 Vitest tests (statistics, engine rules, generator, drift, API, security)
+npm test             # Vitest: statistics, engine, generator, drift, agents, API, RLS policies on Postgres
 npm run typecheck
 npm run build
 ```
 
-Optional env var: `CONTACT_WEBHOOK_URL` (https endpoint, e.g. a Formspree form). Without it the contact API returns 503 and the form says the message was **not** sent.
+Optional env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` enable accounts; `CONTACT_WEBHOOK_URL` (https endpoint, e.g. a Formspree form). Without it the contact API returns 503 and the form says the message was **not** sent.
 
 ## Known gaps (see `/security` and `docs/architecture.md`)
 
-No real authentication, tenant isolation or server storage yet; the workspace lives in each visitor's browser. No Playwright E2E or automated accessibility suite yet. CSP still needs `'unsafe-inline'` for scripts.
+Accounts need a Supabase project to be connected (see `docs/accounts-and-storage.md`); until then the deployment is a browser-only demo. No SSO/MFA enforcement yet. No Playwright E2E or automated accessibility suite yet. CSP still needs `'unsafe-inline'` for scripts.

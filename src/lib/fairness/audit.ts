@@ -24,7 +24,7 @@ export const METHODOLOGY_VERSION = "dt-fairness-1.0.0";
 export const ENGINE_VERSION = "0.1.0";
 
 /** Audit categories the platform supports. Each organisation must additionally authorise them. */
-export const SUPPORTED_AUDIT_ATTRIBUTES = ["gender", "age_band", "synthetic_group"] as const;
+export const SUPPORTED_AUDIT_ATTRIBUTES = ["gender", "age_band", "nationality", "synthetic_group"] as const;
 
 const POSITIVE_DECISIONS = new Set(["advance", "advanced", "shortlist", "shortlisted", "selected", "progress", "progressed", "pass", "passed"]);
 const NEGATIVE_DECISIONS = new Set(["reject", "rejected", "decline", "declined", "not selected", "not_selected", "fail", "failed"]);

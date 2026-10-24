@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { primaryAudit } from "./agents";
 import type { Actor, AuditRequest, WorkflowRun } from "./contracts";
+import { linkRunIntoWorkspace } from "./link";
 import { advance, createWorkflow, decide, requestCancel } from "./orchestrator";
 import type { OrgPolicy } from "./policy";
-import { newId, useStore, type AuditRun, type Finding, type State } from "../store";
+import { newId, useStore, type State } from "../store";
 
 export function policyFrom(state: State): OrgPolicy {
   return { organisationId: state.organisation.id, ...state.settings, retentionDays: 90 };
@@ -15,12 +15,52 @@ export function actorFrom(user: { name: string; role: string }): Actor {
   return { kind: "human", id: `user:${user.name}`, name: user.name, role: user.role };
 }
 
+async function callApi(path: string, body: unknown): Promise<WorkflowRun> {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const out = (await res.json().catch(() => ({}))) as { run?: WorkflowRun; error?: string };
+  if (!res.ok || !out.run) throw new Error(out.error ?? "The server could not run this step.");
+  return out.run;
+}
+
+export function useWorkflowRunner() {
+  const { mode } = useStore();
+  const local = useLocalRunner();
+  const cloud = useCloudRunner();
+  return mode === "cloud" ? cloud : local;
+}
+
 /**
- * Runs workflows in the browser against the current workspace and persists
+ * Signed in: workflows run on the server with the caller's identity from the
+ * session, and are stored in the organisation's workflows table.
+ */
+function useCloudRunner() {
+  const { update, pull } = useStore();
+  const settle = useCallback(
+    async (run: WorkflowRun) => {
+      update((s) => ({ ...s, workflows: s.workflows.some((w) => w.id === run.id) ? s.workflows.map((w) => (w.id === run.id ? run : w)) : [...s.workflows, run] }));
+      // Picks up the audit-log entries and, on completion, the audit linked into the Audit Lab.
+      await pull();
+      return run;
+    },
+    [update, pull],
+  );
+  return {
+    start: useCallback(async (request: AuditRequest, stepThrough: boolean) => settle(await callApi("/api/v1/workflows", { request, stepThrough })), [settle]),
+    resume: useCallback(async (run: WorkflowRun, stepThrough: boolean) => settle(await callApi(`/api/v1/workflows/${encodeURIComponent(run.id)}`, { action: "advance", stepThrough })), [settle]),
+    approve: useCallback(
+      async (run: WorkflowRun, decision: "approved" | "rejected", rationale: string) => settle(await callApi(`/api/v1/workflows/${encodeURIComponent(run.id)}`, { action: "decide", decision, rationale })),
+      [settle],
+    ),
+    cancel: useCallback(async (run: WorkflowRun) => settle(await callApi(`/api/v1/workflows/${encodeURIComponent(run.id)}`, { action: "cancel" })), [settle]),
+  };
+}
+
+/**
+ * Browser demo: runs workflows against the local workspace and persists
  * every change. Execution is deterministic and bounded (a fixed plan of at
  * most 16 tasks), so it never needs an unbounded serverless worker.
  */
-export function useWorkflowRunner() {
+function useLocalRunner() {
   const { state, update, log, user } = useStore();
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -33,26 +73,12 @@ export function useWorkflowRunner() {
   /** On completion, publish the primary audit into the Audit Lab exactly once. */
   const linkToAuditLab = useCallback(
     (run: WorkflowRun) => {
-      if (run.state !== "COMPLETED" || run.linkedAuditId) return run;
-      const result = primaryAudit(run);
-      if (!result) return run;
-      const auditId = newId("aud");
-      const now = new Date().toISOString();
-      const s = stateRef.current;
-      const audit: AuditRun = {
-        id: auditId,
-        createdAt: now,
-        createdBy: `${run.createdBy.name} via multi-agent workflow`,
-        jobTitle: s.records.find((r) => r.jobRef === run.request.jobRef)?.jobTitle ?? run.request.jobRef,
-        datasetHash: run.datasetHash ?? "",
-        importIds: [...new Set(s.records.filter((r) => r.jobRef === run.request.jobRef && r.stage === run.request.stage).map((r) => r.importId ?? "unknown"))],
-        result,
-      };
-      const findings: Finding[] = result.findings.map((f) => ({ ...f, id: newId("fnd"), auditId, status: "open", createdAt: now }));
-      const linked = { ...run, linkedAuditId: auditId };
-      update((st) => ({ ...st, audits: [...st.audits, audit], findings: [...st.findings, ...findings], workflows: st.workflows.map((w) => (w.id === run.id ? linked : w)) }));
-      log("workflow.linked_to_audit_lab", `workflow:${run.id}`, `audit ${auditId}`);
-      return linked;
+      const out = linkRunIntoWorkspace(stateRef.current, run, newId);
+      if (!out) return run;
+      const { audits, findings } = out.ws;
+      update((st) => ({ ...st, audits, findings, workflows: st.workflows.map((w) => (w.id === run.id ? out.run : w)) }));
+      log("workflow.linked_to_audit_lab", `workflow:${run.id}`, `audit ${out.run.linkedAuditId}`);
+      return out.run;
     },
     [update, log],
   );

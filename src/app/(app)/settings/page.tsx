@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { MembersPanel } from "@/components/auth/MembersPanel";
 import { Badge, PageHeader, Restricted, attrLabel, fmtDate } from "@/components/ui";
 import { SUPPORTED_AUDIT_ATTRIBUTES } from "@/lib/fairness/audit";
 import { PERMISSIONS, USERS, initialState, useStore, type Settings } from "@/lib/store";
 
 export default function SettingsPage() {
-  const { state, update, log, can, reset } = useStore();
+  const { state, update, log, can, reset, mode } = useStore();
   const [draft, setDraft] = useState<Settings>(state.settings);
   const [saved, setSaved] = useState(false);
   const canManage = can("managePolicies");
@@ -88,6 +89,9 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {mode === "cloud" ? (
+        <MembersPanel />
+      ) : (
       <section className="card mb-6">
         <h2 className="text-sm font-semibold">Users &amp; roles (fictional)</h2>
         <div className="mt-3 overflow-x-auto">
@@ -117,8 +121,9 @@ export default function SettingsPage() {
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-ink-2">Demo role switching stands in for OIDC sign-in with MFA for privileged users.</p>
+        <p className="mt-2 text-xs text-ink-2">Demo role switching stands in for real accounts, which are available when this deployment is connected to its database.</p>
       </section>
+      )}
 
       <section className="card mb-6">
         <h2 className="text-sm font-semibold">Audit trail ({state.events.length} events, append-only)</h2>
@@ -150,6 +155,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {mode === "local" && (
       <section className="card border-red-200">
         <h2 className="text-sm font-semibold">Reset demo workspace</h2>
         <p className="mt-1 text-sm text-ink-2">Clears all records, audits, investigations, reports and events stored in this browser.</p>
@@ -165,6 +171,7 @@ export default function SettingsPage() {
           Reset demo data
         </button>
       </section>
+      )}
     </>
   );
 }

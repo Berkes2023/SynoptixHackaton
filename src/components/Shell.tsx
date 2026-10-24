@@ -10,6 +10,24 @@ import { BUILD_ID } from "./VersionGuard";
 import { APP_NAV } from "@/lib/site/nav";
 import { USERS, useStore, type Role } from "@/lib/store";
 
+/** Inlined at build time: whether this deployment has accounts (Supabase) enabled. */
+const ACCOUNTS_ENABLED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+function SyncBadge() {
+  const { sync } = useStore();
+  if (sync.status === "error")
+    return (
+      <span role="alert" className="max-w-[16rem] truncate rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-800" title={sync.message}>
+        {sync.message}
+      </span>
+    );
+  return (
+    <span className="hidden rounded-full bg-sunken px-2 py-0.5 text-[11px] font-semibold text-ink-2 md:inline" aria-live="polite">
+      {sync.status === "saving" ? "Saving…" : "Saved to your organisation"}
+    </span>
+  );
+}
+
 const SECTIONS = ["Audit", "Governance", "Workspace"] as const;
 
 const CRUMB_LABELS: Record<string, string> = {
@@ -72,7 +90,11 @@ function ShellSkeleton() {
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { state, update, log, ready } = useStore();
+  const { state, update, log, ready, cloud } = useStore();
+  const signOut = async () => {
+    await fetch("/api/auth/sign-out", { method: "POST" });
+    window.location.assign("/login");
+  };
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const isReport = /^\/reports\/[^/]+$/.test(pathname);
@@ -178,21 +200,42 @@ export function Shell({ children }: { children: ReactNode }) {
             <Breadcrumbs pathname={pathname} />
           </div>
           <div className="flex flex-none items-center gap-1.5">
-            <span className="hidden rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 md:inline">Synthetic demo data</span>
+            {cloud ? <SyncBadge /> : <span className="hidden rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 md:inline">Synthetic demo data</span>}
             <button className="btn btn-ghost px-2 lg:hidden" aria-label="Search" onClick={() => setPalette(true)}>
               <Icon name="search" className="h-4 w-4" />
             </button>
             <ThemeToggle />
-            <label className="flex items-center gap-2 text-xs text-ink-2">
-              <span className="hidden sm:inline">Acting as</span>
-              <select className="rounded-lg border border-line bg-surface-2 px-2 py-1 text-sm text-ink" value={state.role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Demo role">
-                {USERS.map((u) => (
-                  <option key={u.role} value={u.role}>
-                    {u.name} — {u.role}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {cloud ? (
+              <div className="flex items-center gap-2 text-xs text-ink-2">
+                <span className="hidden text-right leading-tight sm:block">
+                  <span className="block font-medium text-ink">{cloud.name}</span>
+                  <span>
+                    {cloud.role} · {cloud.organisation.name}
+                  </span>
+                </span>
+                <button className="btn btn-ghost px-2 text-sm" onClick={signOut}>
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <>
+                <label className="flex items-center gap-2 text-xs text-ink-2">
+                  <span className="hidden sm:inline">Acting as</span>
+                  <select className="rounded-lg border border-line bg-surface-2 px-2 py-1 text-sm text-ink" value={state.role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Demo role">
+                    {USERS.map((u) => (
+                      <option key={u.role} value={u.role}>
+                        {u.name} — {u.role}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {ACCOUNTS_ENABLED && (
+                  <button className="btn btn-ghost px-2 text-sm" onClick={signOut} title="Leave the local demo and sign in">
+                    Sign in
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </header>
         <main id="main" className={isReport ? "px-4 py-6 sm:px-8" : "mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8"}>

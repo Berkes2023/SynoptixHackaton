@@ -1,5 +1,5 @@
 import { sha256Hex } from "./hash";
-import type { AuditRun, State } from "./store";
+import type { AuditRun, State } from "./state";
 
 export const REPORT_FORMAT_VERSION = "dt-report-1.0";
 

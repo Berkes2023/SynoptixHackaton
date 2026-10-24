@@ -14,7 +14,8 @@ It does **not** make the statistics more accurate: discovery and verification us
 | `src/lib/agents/policy.ts` | Deterministic policy (who may start/approve, authorised categories, external access), job-relevant fields, `DataBroker` with per-agent capabilities and tenancy checks |
 | `src/lib/agents/agents.ts` | The eight agents (all deterministic services) |
 | `src/lib/agents/orchestrator.ts` | State machine, plan, dependency enforcement, retries, timeouts, task cap, idempotency, cancellation, resume, conflict detection, approval gate |
-| `src/lib/agents/runner.ts` | Browser runner: persists every change to the workspace and links completed workflows into the Audit Lab |
+| `src/lib/agents/runner.ts` | Client runner: in the browser demo runs workflows locally; when signed in, calls the server API |
+| `src/lib/server/workflow-service.ts` | Server runner: identity from the session, persistence in Supabase, links completed workflows into the Audit Lab |
 | `src/lib/agents/evaluation.ts` | Baseline vs multi-agent evaluation on identical synthetic cases |
 | `src/lib/agents/model-provider.ts` | Optional model-provider interface — disabled, none configured |
 
@@ -34,7 +35,8 @@ Verified statistics → hard policy constraints → human review → generated n
 |---|---|
 | 8 agents | Implemented and tested — deterministic services, no LLM |
 | Orchestrator, gates, conflicts, recovery | Implemented and tested |
-| Agent Observatory `/agents` | Implemented; workflows persist in the browser workspace |
+| Agent Observatory `/agents` | Implemented; workflows persist in the browser (demo) or in Supabase (accounts) |
 | Single general-purpose LLM agent (evaluation arm) | Not run — no model provider configured |
-| Durable server-side worker, database persistence, per-tenant quotas | Planned (needs Supabase/Postgres and a job runner) |
+| Database persistence, per-tenant quotas | Implemented with Supabase + RLS (needs a project connected; see `docs/accounts-and-storage.md`) |
+| Durable background worker | Planned; workflows run inside the API request |
 | External ATS testing, external model providers | Denied by policy in this deployment |
