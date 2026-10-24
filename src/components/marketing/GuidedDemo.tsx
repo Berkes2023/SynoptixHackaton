@@ -35,7 +35,7 @@ const pct = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%
 
 export function GuidedDemo() {
   const [step, setStep] = useState(0);
-  const [attr, setAttr] = useState<"gender" | "age_band">("gender");
+  const [attr, setAttr] = useState<"gender" | "age_band" | "nationality">("gender");
   const [result, setResult] = useState<AuditResult | null>(null);
   const [hash, setHash] = useState("");
   const [running, setRunning] = useState(false);
@@ -225,11 +225,12 @@ export function GuidedDemo() {
               Choose which self-reported category to compare. DeepTrace only uses categories the organisation is authorised to analyse, and never guesses them from names or
               CVs.
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {(
                 [
                   ["gender", "Gender (self-reported)", "Compare selection rates between gender groups."],
                   ["age_band", "Age band (self-reported)", "Compare under-40 and 40-and-over applicants."],
+                  ["nationality", "Nationality (self-reported)", "Compare UK and non-UK nationals. Separate from citizenship and right to work."],
                 ] as const
               ).map(([k, t, d]) => (
                 <label key={k} className={`cursor-pointer rounded-xl border p-4 ${attr === k ? "border-brand bg-brand-soft" : "border-line bg-surface-2"}`}>
@@ -376,7 +377,7 @@ export function GuidedDemo() {
           <div className="mt-4">
             <div className="rounded-xl border border-line bg-surface-2 p-5">
               <div className="eyebrow">Sample audit report</div>
-              <h3 className="mt-1 text-lg font-semibold">Software Engineer — initial screening, by {attr === "gender" ? "gender" : "age band"}</h3>
+              <h3 className="mt-1 text-lg font-semibold">Software Engineer — initial screening, by {attr === "gender" ? "gender" : attr === "age_band" ? "age band" : "nationality"}</h3>
               <p className="mt-1 text-xs text-ink-2">
                 {DEMO_EMPLOYER.name} (fictional) · dataset {hash.slice(0, 16)}… · methodology {result.methodologyVersion}
               </p>

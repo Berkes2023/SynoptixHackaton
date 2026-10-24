@@ -23,6 +23,7 @@ export const STANDARD_FIELDS: FieldDef[] = [
   { key: "scoringVersion", label: "Scoring version", required: false, synonyms: ["scoring version", "model version", "score version", "algorithm version"] },
   { key: "sensitive.synthetic_group", label: "Audit group (synthetic)", required: false, sensitive: true, synonyms: ["audit group synthetic", "synthetic group", "audit group"] },
   { key: "sensitive.gender", label: "Gender (self-reported)", required: false, sensitive: true, synonyms: ["gender self reported", "gender", "sex"] },
+  { key: "sensitive.nationality", label: "Nationality (self-reported)", required: false, sensitive: true, synonyms: ["nationality self reported", "nationality"] },
   { key: "sensitive.age_band", label: "Age band (self-reported)", required: false, sensitive: true, synonyms: ["age band self reported", "age band", "age group"] },
 ];
 

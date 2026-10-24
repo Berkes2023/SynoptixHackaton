@@ -185,7 +185,7 @@ export const initialState = (): State => ({
   experiments: [],
   workflows: [],
   onboardingDismissed: false,
-  settings: { minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, authorisedAttributes: ["gender", "age_band", "synthetic_group"] },
+  settings: { minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, authorisedAttributes: ["gender", "age_band", "nationality", "synthetic_group"] },
 });
 
 export const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;

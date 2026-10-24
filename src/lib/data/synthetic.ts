@@ -9,6 +9,9 @@ import { gaussian, mulberry32, shuffle } from "../random";
  *   Male 40/100 advanced, Female 25/100 advanced (ratio 0.625 — the PRD fixture)
  *   65 advanced candidates continue to an assessment stage.
  * REQ-1077 Data Analyst, assessment: 60 applications, 40% gender not disclosed.
+ *
+ * Nationality is a self-reported, fictional column. It is not citizenship and
+ * says nothing about right to work, which is a separate legal question.
  */
 export const SYNTHETIC_DATASET_NAME = "deeptrace_synthetic_workday_style_v1.csv";
 export const SYNTHETIC_SEED = 20261024;
@@ -28,6 +31,7 @@ export const SYNTHETIC_HEADERS = [
   "Source System",
   "Gender (self-reported)",
   "Age Band (self-reported)",
+  "Nationality (self-reported)",
   "Recruiter Notes",
 ];
 
@@ -61,8 +65,14 @@ export function generateSyntheticRows(seed = SYNTHETIC_SEED): (string | number |
   const ageOf = new Map<Seed, string>();
   advanced.forEach((s, i) => ageOf.set(s, i < 2 ? "Prefer not to say" : i < 45 ? "Under 40" : "40 and over"));
   rejected.forEach((s, i) => ageOf.set(s, i < 8 ? "Prefer not to say" : i < 95 ? "Under 40" : "40 and over"));
+  // Nationality with fixed counts (UK 45/120 advanced vs non-UK 17/69), spread by a stride so it is not tied to age.
+  // No extra random draws, so every other value in the fixture is unchanged.
+  const natOf = new Map<Seed, string>();
+  const nat = (slot: number, pnts: number, nonUk: number) => (slot < pnts ? "Prefer not to say" : slot < pnts + nonUk ? "Non-UK national" : "UK national");
+  advanced.forEach((s, i) => natOf.set(s, nat((i * 7) % advanced.length, 3, 17)));
+  rejected.forEach((s, i) => natOf.set(s, nat((i * 7) % rejected.length, 8, 52)));
 
-  const assessmentQueue: { appId: string; cand: string; gender: string; age: string; applied: string; score: number }[] = [];
+  const assessmentQueue: { appId: string; cand: string; gender: string; age: string; nat: string; applied: string; score: number }[] = [];
   ordered.forEach((s, i) => {
     const n = String(i + 1).padStart(4, "0");
     const appId = `APP-SE-${n}`;
@@ -73,9 +83,9 @@ export function generateSyntheticRows(seed = SYNTHETIC_SEED): (string | number |
     rows.push([
       appId, cand, "REQ-1042", "Software Engineer", "Engineering", applied, "initial_screening",
       score, grade(score), s.advanced ? "Advance" : "Reject", isoDate(start, day + 2), SOURCE,
-      s.gender, ageOf.get(s)!, "",
+      s.gender, ageOf.get(s)!, natOf.get(s)!, "",
     ]);
-    if (s.advanced) assessmentQueue.push({ appId, cand, gender: s.gender, age: ageOf.get(s)!, applied, score });
+    if (s.advanced) assessmentQueue.push({ appId, cand, gender: s.gender, age: ageOf.get(s)!, nat: natOf.get(s)!, applied, score });
   });
 
   // --- REQ-1042 assessment stage (the 65 advanced candidates) ---
@@ -87,7 +97,7 @@ export function generateSyntheticRows(seed = SYNTHETIC_SEED): (string | number |
     rows.push([
       a.appId, a.cand, "REQ-1042", "Software Engineer", "Engineering", a.applied, "assessment",
       score, grade(score), pass ? "Advance" : "Reject", isoDate(new Date(Date.parse(a.applied)), 9), SOURCE,
-      a.gender, a.age, "",
+      a.gender, a.age, a.nat, "",
     ]);
   }
 
@@ -106,7 +116,7 @@ export function generateSyntheticRows(seed = SYNTHETIC_SEED): (string | number |
       `APP-DA-${n}`, `CAND-${String(500 + i).padStart(4, "0")}`, "REQ-1077", "Data Analyst", "Analytics",
       isoDate(start, day), "assessment", missingScore ? null : score, missingScore ? null : grade(score),
       s.advanced ? "Advance" : "Reject", isoDate(start, day + 5), SOURCE, s.gender,
-      rand() < 0.7 ? "Under 40" : "40 and over", i % 9 === 0 ? "Synthetic note — dropped on import" : "",
+      rand() < 0.7 ? "Under 40" : "40 and over", ["UK national", "Non-UK national", "UK national", "", "Prefer not to say"][i % 5], i % 9 === 0 ? "Synthetic note — dropped on import" : "",
     ]);
   });
 

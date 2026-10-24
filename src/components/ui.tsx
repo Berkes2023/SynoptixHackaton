@@ -9,7 +9,7 @@ export const fmtDate = (iso: string) =>
 export const shortHash = (h: string) => `${h.slice(0, 12)}…`;
 export const stageLabel = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 export const attrLabel = (a: string) =>
-  a === "age_band" ? "Age band" : a === "synthetic_group" ? "Synthetic audit group" : a.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  a === "age_band" ? "Age band" : a === "nationality" ? "Nationality" : a === "synthetic_group" ? "Synthetic audit group" : a.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (

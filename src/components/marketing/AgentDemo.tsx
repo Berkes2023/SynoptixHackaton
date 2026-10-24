@@ -8,7 +8,7 @@ import { demoRecords } from "@/lib/site/demo-data";
 
 const INITIATOR: Actor = { kind: "human", id: "demo-auditor", name: "Sam Patel (fictional auditor)", role: "Auditor" };
 const VISITOR: Actor = { kind: "human", id: "demo-visitor", name: "You, as a fictional reviewer", role: "Reviewer" };
-const POLICY = { organisationId: "org_demo", authorisedAttributes: ["gender", "age_band"], minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, retentionDays: 90 };
+const POLICY = { organisationId: "org_demo", authorisedAttributes: ["gender", "age_band", "nationality"], minimumGroupSize: 20, confidenceLevel: 0.95, impactThreshold: 0.8, alpha: 0.05, retentionDays: 90 };
 
 /**
  * Public demo: runs the real orchestrator and agents in the browser on the
