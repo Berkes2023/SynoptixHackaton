@@ -9,7 +9,7 @@ next-env.d.ts
 .claude
 
 # E2E
-.next-e2e-*
+.next-*
 playwright-report
 test-results
 blob-report
