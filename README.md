@@ -16,7 +16,7 @@ DeepTrace independently examines AI-assisted recruitment outcomes recorded by an
 
 **Engine** (`src/lib/fairness`): deterministic and tested. Wilson CIs, impact ratio with Katz CI, Fisher exact, Mann–Whitney U, Holm correction, suppression, missingness, plain-English explanations per finding, drift by month or scoring version, and counterfactual pairs.
 
-**Data** (`src/lib/data`): deterministic Workday-*style* sample export, a native generator (100/250/500/1,000 candidates × 4 job categories × 6 scenarios, CSV/JSON), and a 60-CV pack derived from [jsonresume-fake](https://github.com/jsonresume/jsonresume-fake) (Unlicense, identifiers removed).
+**Data** (`src/lib/data`): deterministic Workday-*style* sample export, a native generator (100/250/500/1,000 candidates × 4 job categories × 6 scenarios, CSV/JSON), and a deterministic pack of 200 fictional CVs with realistic career histories (graduate to principal, 1–6 roles; no real person's data).
 
 **Research claims** live only in `src/lib/site/research.ts`, each checked against its primary source (Oct 2026). **Security status** lives only in `src/lib/site/security-controls.ts`.
 

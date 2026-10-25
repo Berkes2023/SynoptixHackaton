@@ -69,6 +69,27 @@ describe("mitigation simulator (mock screener, synthetic pool)", () => {
     expect(simulateMitigation({ cue: "nationality" }).touchesJobRelevantField).toBe(false);
   });
 
+  it("removing all four penalised cues together undoes a compounded disadvantage", () => {
+    const s = simulateMitigation({ cue: "allBiased" });
+    expect([s.before.affected.selected, s.before.reference.selected]).toEqual([29, 91]);
+    expect(s.before.ratio!).toBeCloseTo(0.319, 3);
+    expect(s.before.fisherP).toBeLessThan(1e-9);
+    expect(s.after.ratio).toBe(1);
+    // 6 + 3.5 + 4 + 2.5 = 16 points for identical qualifications, gone after masking.
+    expect(s.before.scoreGap).toBeCloseTo(-16, 0);
+    expect(s.after.scoreGap).toBe(0);
+    expect(s.touchesJobRelevantField).toBe(true);
+    // Compounded cues hurt more than any single cue.
+    for (const cue of ["employmentGap", "postcodeRegion", "nationality", "nameSet"] as const) expect(s.before.ratio!).toBeLessThan(simulateMitigation({ cue }).before.ratio!);
+  });
+
+  it("reports the average score gap between identically qualified groups", () => {
+    const s = simulateMitigation({ cue: "nationality" });
+    expect(s.before.scoreGap).toBeCloseTo(-4, 1);
+    expect(s.after.scoreGap).toBe(0);
+    expect(simulateMitigation({ cue: "cvFormat" }).before.scoreGap).toBe(0);
+  });
+
   it("rejects out-of-range inputs", () => {
     expect(() => simulateMitigation({ cue: "nationality", poolSize: 5 })).toThrow(RangeError);
     expect(() => simulateMitigation({ cue: "nationality", shortlistRate: 1 })).toThrow(RangeError);

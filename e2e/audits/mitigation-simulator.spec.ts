@@ -24,6 +24,13 @@ test.describe("mitigation simulator (before vs after removing a biased cue)", ()
     await expect(page.getByText(/a trade-off a person must decide on/)).toBeVisible();
   });
 
+  test("removing all four penalised cues shows the compounded effect and the score gap closing", async ({ page }) => {
+    await page.getByLabel("Cue to remove").selectOption("allBiased");
+    await expect(summary(page)).toContainText("Ratio 0.319 → 1.000");
+    await expect(page.getByTestId("gap-before")).toHaveText("-16.0 pts");
+    await expect(page.getByTestId("gap-after")).toHaveText("0.0 pts");
+  });
+
   test("a control cue the screener never used shows no change", async ({ page }) => {
     await page.getByLabel("Cue to remove").selectOption("cvFormat");
     await expect(summary(page)).toContainText("No change.");
