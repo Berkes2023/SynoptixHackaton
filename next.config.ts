@@ -18,6 +18,8 @@ const CSP = [
 const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local";
 
 const nextConfig: NextConfig = {
+  // E2E runs two isolated production builds side by side (see playwright.config.ts).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   async headers() {

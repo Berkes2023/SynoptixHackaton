@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DeltaChart } from "@/components/charts";
+import { MitigationSimulator } from "@/components/MitigationSimulator";
 import { ResumeDiff } from "@/components/ResumeDiff";
 import { Badge, Kv, PageHeader, fmtP, pct } from "@/components/ui";
 import { RESUME_PACK, RESUME_PACK_SOURCE, yearsOfExperience } from "@/lib/data/resumes";
@@ -265,6 +266,8 @@ export default function FairnessLabPage() {
           </div>
         </section>
       )}
+
+      <MitigationSimulator />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="card">

@@ -146,3 +146,63 @@ export function DeltaChart({ deltas, height = 220 }: { deltas: { id: string; del
     </div>
   );
 }
+
+/** Selection rate per group, before and after a mitigation, with confidence intervals. */
+export function BeforeAfterChart({
+  rows,
+  confidence,
+  height = 260,
+}: {
+  rows: { phase: string; reference: { group: string; rate: number; lo: number; hi: number; n: number; selected: number }; affected: { group: string; rate: number; lo: number; hi: number; n: number; selected: number } }[];
+  confidence: number;
+  height?: number;
+}) {
+  const data = rows.map((r) => ({
+    phase: r.phase,
+    // Avoid "ref" as a key: Recharts spreads row fields onto elements and "ref" is reserved by React.
+    referenceRate: r.reference.rate * 100,
+    affectedRate: r.affected.rate * 100,
+    refErr: [(r.reference.rate - r.reference.lo) * 100, (r.reference.hi - r.reference.rate) * 100],
+    affErr: [(r.affected.rate - r.affected.lo) * 100, (r.affected.hi - r.affected.rate) * 100],
+    raw: r,
+  }));
+  const refName = rows[0]?.reference.group ?? "Reference";
+  const affName = rows[0]?.affected.group ?? "Affected";
+  const yMax = Math.min(100, Math.ceil(Math.max(10, ...rows.flatMap((r) => [r.reference.hi, r.affected.hi]).map((x) => x * 100)) / 10) * 10 + 10);
+  return (
+    <div>
+    <div className="flex flex-wrap gap-4 text-xs text-ink-2" aria-hidden="true">
+      {[[affName, SERIES[1]], [refName, SERIES[0]]].map(([name, color]) => (
+        <span key={name} className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+          {name}
+        </span>
+      ))}
+    </div>
+    <div style={{ width: "100%", height }} role="img" aria-label={`Shortlisting rate for ${affName} and ${refName}, before and after mitigation`}>
+      <ResponsiveContainer>
+        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 4, left: 0 }} barCategoryGap="28%" barGap={6}>
+          <CartesianGrid vertical={false} stroke="#e1e0d9" />
+          <XAxis dataKey="phase" {...AXIS} />
+          <YAxis {...AXIS} axisLine={false} unit="%" domain={[0, yMax]} width={48} className="tabular" />
+          <Tooltip
+            cursor={{ fill: "rgba(0,0,0,0.04)" }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = (payload[0].payload as (typeof data)[number]).raw;
+              const fmt = (g: typeof d.reference) => `${g.selected} of ${g.n} (${(g.rate * 100).toFixed(1)}%, ${Math.round(confidence * 100)}% CI ${(g.lo * 100).toFixed(1)}–${(g.hi * 100).toFixed(1)}%)`;
+              return <TooltipBox title={d.phase} rows={[[d.affected.group, fmt(d.affected)], [d.reference.group, fmt(d.reference)]]} />;
+            }}
+          />
+          <Bar dataKey="affectedRate" name={affName} fill={SERIES[1]} radius={[4, 4, 0, 0]} maxBarSize={64} isAnimationActive={false}>
+            <ErrorBar dataKey="affErr" width={8} strokeWidth={1.5} stroke="#0b0b0b" />
+          </Bar>
+          <Bar dataKey="referenceRate" name={refName} fill={SERIES[0]} radius={[4, 4, 0, 0]} maxBarSize={64} isAnimationActive={false}>
+            <ErrorBar dataKey="refErr" width={8} strokeWidth={1.5} stroke="#0b0b0b" />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+    </div>
+  );
+}
