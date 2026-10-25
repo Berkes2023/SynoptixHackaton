@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ScoreHistogram, SelectionRateChart, groupColor } from "@/components/charts";
 import { FindingExplanation } from "@/components/FindingExplanation";
+import { confidenceMismatch } from "@/lib/fairness/guidance";
 import { Badge, EmptyState, FlagBadge, Kv, PageHeader, SeverityBadge, SyntheticNotice, attrLabel, fmtDate, fmtP, pct, shortHash, stageLabel } from "@/components/ui";
 import { minimiseForAudit, runAudit } from "@/lib/fairness/audit";
 import { canonicalDataset, sha256Hex } from "@/lib/hash";
@@ -108,6 +109,11 @@ export default function AuditDetailPage() {
       <div className="mb-4">
         <SyntheticNotice compact />
       </div>
+      {confidenceMismatch(c.confidenceLevel, c.alpha) && (
+        <div role="note" data-testid="confidence-mismatch" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:bg-transparent dark:text-amber-200">
+          <strong>⚠ Read ranges and flags together carefully.</strong> {confidenceMismatch(c.confidenceLevel, c.alpha)}
+        </div>
+      )}
       {repro && (
         <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${repro.ok ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-900"}`}>
           {repro.ok ? "✓ " : "▲ "}

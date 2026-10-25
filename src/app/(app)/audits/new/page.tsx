@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { EmptyState, PageHeader, Restricted, attrLabel, stageLabel } from "@/components/ui";
 import { minimiseForAudit, SUPPORTED_AUDIT_ATTRIBUTES } from "@/lib/fairness/audit";
+import { SETTING_HELP, auditGuidance, matchingConfidence, type Guidance } from "@/lib/fairness/guidance";
 import type { AuditConfig, AuditResult, MetricName } from "@/lib/fairness/types";
 import { newId, useStore, type AuditRun, type Finding } from "@/lib/store";
 
@@ -12,6 +13,30 @@ const METRIC_LABELS: Record<MetricName, string> = {
   selection_rate_ratio: "Adverse impact ratio (screening heuristic)",
   score_distribution: "ATS score distribution analysis",
 };
+
+function Help({ children }: { children: string }) {
+  return <p className="mt-1.5 text-xs leading-relaxed text-ink-2">{children}</p>;
+}
+
+/** Warnings and notes for one setting, shown directly under its control. */
+function Notes({ items, setting }: { items: Guidance[]; setting: Guidance["setting"] }) {
+  const mine = items.filter((g) => g.setting === setting);
+  if (!mine.length) return null;
+  return (
+    <ul className="mt-2 space-y-1.5" aria-live="polite">
+      {mine.map((g) => (
+        <li
+          key={g.message}
+          data-testid={`guidance-${setting}`}
+          className={`rounded-md border px-2.5 py-1.5 text-xs leading-relaxed ${g.level === "warning" ? "border-amber-300 bg-amber-50 text-amber-950 dark:bg-transparent dark:text-amber-200" : "border-line bg-sunken text-ink-2"}`}
+        >
+          <span className="font-semibold">{g.level === "warning" ? "⚠ Warning: " : "ℹ Note: "}</span>
+          {g.message}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function NewAuditForm() {
   const { state, update, log, can, user } = useStore();
@@ -40,6 +65,11 @@ function NewAuditForm() {
   const [minGroup, setMinGroup] = useState(state.settings.minimumGroupSize);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const guidance = useMemo(
+    () => auditGuidance({ records: state.records, jobRef, stage, attribute, confidence, alpha: state.settings.alpha, minGroup, metrics }),
+    [state.records, jobRef, stage, attribute, confidence, state.settings.alpha, minGroup, metrics],
+  );
+  const recommended = matchingConfidence(state.settings.alpha);
 
   if (jobs.size === 0) return <EmptyState title="No data to audit" body="Import screening records first." href="/imports" cta="Go to Data Hub" />;
   if (!can("runAudit")) return <Restricted what="run audits (Admin or Auditor required)" />;
@@ -114,6 +144,7 @@ function NewAuditForm() {
                 </option>
               ))}
             </select>
+            <Help>{SETTING_HELP.job}</Help>
           </div>
           <div>
             <label className="label" htmlFor="stage">Screening stage</label>
@@ -124,6 +155,8 @@ function NewAuditForm() {
                 </option>
               ))}
             </select>
+            <Help>{SETTING_HELP.stage}</Help>
+            <Notes items={guidance} setting="stage" />
           </div>
           <div>
             <label className="label" htmlFor="attr">Audit category (self-reported)</label>
@@ -136,36 +169,47 @@ function NewAuditForm() {
               ))}
               <option disabled>Ethnicity — not collected in this dataset</option>
             </select>
+            <Help>{SETTING_HELP.category}</Help>
+            <Notes items={guidance} setting="category" />
           </div>
           <div>
             <label className="label">Analysis type</label>
             <div className="input bg-plane text-ink-2">Observational audit</div>
+            <Help>{SETTING_HELP.analysis}</Help>
           </div>
           <div>
             <label className="label" htmlFor="conf">Confidence level</label>
             <select id="conf" className="input" value={confidence} onChange={(e) => setConfidence(Number(e.target.value))}>
               {[0.9, 0.95, 0.99].map((c) => (
                 <option key={c} value={c}>
-                  {Math.round(c * 100)}%
+                  {Math.round(c * 100)}%{Math.abs(c - recommended) < 1e-9 ? ` — matches α = ${state.settings.alpha} (recommended)` : ""}
                 </option>
               ))}
             </select>
+            <Help>{SETTING_HELP.confidence}</Help>
+            <Notes items={guidance} setting="confidence" />
           </div>
           <div>
             <label className="label" htmlFor="min">Minimum reportable group size</label>
             <input id="min" type="number" min={5} max={1000} className="input" value={minGroup} onChange={(e) => setMinGroup(Number(e.target.value))} />
+            <Help>{SETTING_HELP.minGroup}</Help>
+            <Notes items={guidance} setting="minGroup" />
           </div>
         </div>
         <fieldset className="mt-5">
           <legend className="label">Metrics</legend>
           <div className="space-y-2">
             {(Object.keys(METRIC_LABELS) as MetricName[]).map((m) => (
-              <label key={m} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={metrics.includes(m)} onChange={() => toggleMetric(m)} />
-                {METRIC_LABELS[m]}
+              <label key={m} className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={metrics.includes(m)} onChange={() => toggleMetric(m)} />
+                <span>
+                  {METRIC_LABELS[m]}
+                  <span className="block text-xs leading-relaxed text-ink-2">{SETTING_HELP.metrics[m]}</span>
+                </span>
               </label>
             ))}
           </div>
+          <Notes items={guidance} setting="metrics" />
         </fieldset>
         {error && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
         <button className="btn btn-primary mt-5" onClick={run} disabled={running || metrics.length === 0 || !stage}>
