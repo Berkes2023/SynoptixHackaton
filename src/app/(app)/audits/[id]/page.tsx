@@ -193,7 +193,7 @@ export default function AuditDetailPage() {
       {c.metrics.includes("score_distribution") && r.groups.some((g) => g.score) && (
         <section className="card mb-6">
           <h2 className="text-sm font-semibold">ATS score distribution</h2>
-          <p className="text-xs text-ink-2">Share of each group's scored applications per score band.</p>
+          <p className="text-xs text-ink-2">Share of each group&apos;s scored applications per score band.</p>
           <div className="mt-2">
             <ScoreHistogram result={r} />
           </div>
