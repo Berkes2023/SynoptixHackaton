@@ -1,11 +1,10 @@
-import pack from "./resume-pack.json";
 import type { SyntheticProfile } from "../fairness/counterfactual";
+import { CV_PACK_SIZE, CV_PACK_VERSION, generateCvPack } from "./cv-pack";
 
 /**
- * 60 machine-generated résumés from jsonresume-fake (Unlicense), stored in a
- * subset of the JSON Resume schema. Names, contact details, photos, websites,
- * locations, references and interests were removed when the pack was built:
- * the lab varies one cue at a time and must not carry other demographic signals.
+ * Fictional CVs in a subset of the JSON Resume schema (see cv-pack.ts). They
+ * carry no names, contact details or locations: the lab varies one cue at a
+ * time and must not carry other demographic signals.
  */
 export interface ResumeJob {
   company: string;
@@ -21,12 +20,12 @@ export interface PackResume {
   work: ResumeJob[];
 }
 
-export const RESUME_PACK = pack as PackResume[];
+export const RESUME_PACK: PackResume[] = generateCvPack();
 
 export const RESUME_PACK_SOURCE = {
-  name: "jsonresume-fake",
-  url: "https://github.com/jsonresume/jsonresume-fake",
-  licence: "Unlicense (public domain)",
+  name: "DeepTrace synthetic CV generator",
+  version: CV_PACK_VERSION,
+  size: CV_PACK_SIZE,
 };
 
 const MS_PER_YEAR = 365.25 * 86400000;

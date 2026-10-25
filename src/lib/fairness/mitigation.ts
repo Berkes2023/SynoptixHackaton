@@ -17,8 +17,15 @@ import { mulberry32 } from "../random";
 
 export const MITIGATION_SIM_VERSION = "mitigation-sim-1.0";
 
+/** The cues the mock screener penalises. Real applicants can carry several at once. */
+export const BIASED_CUES: readonly MaskableField[] = ["employmentGap", "postcodeRegion", "nationality", "nameSet"];
+
+/** A single cue, or every penalised cue at once (compounded disadvantage). */
+export type SimCue = MaskableField | "allBiased";
+
 /** Group labels per cue: [reference group (cue absent), affected group (cue present)]. */
-export const CUE_GROUPS: Record<MaskableField, { reference: string; affected: string; label: string }> = {
+export const CUE_GROUPS: Record<SimCue, { reference: string; affected: string; label: string }> = {
+  allBiased: { label: "All four penalised cues together", reference: "No penalised cues", affected: "All four penalised cues" },
   employmentGap: { label: "Employment gap", reference: "No gap", affected: "12-month gap" },
   postcodeRegion: { label: "Postcode region", reference: "Region S", affected: "Region N" },
   nationality: { label: "Nationality statement", reference: "UK national", affected: "Non-UK national" },
@@ -30,7 +37,8 @@ export const CUE_GROUPS: Record<MaskableField, { reference: string; affected: st
 /** Masking these can hide information an employer may legitimately consider; a person must decide. */
 export const JOB_RELEVANT_CUES: readonly MaskableField[] = ["employmentGap"];
 
-const ALL_CUES = Object.keys(CUE_GROUPS) as MaskableField[];
+const ALL_CUES: MaskableField[] = ["employmentGap", "postcodeRegion", "nationality", "nameSet", "pronouns", "cvFormat"];
+const masked = (cue: SimCue): readonly MaskableField[] => (cue === "allBiased" ? BIASED_CUES : [cue]);
 
 export interface GroupOutcome {
   group: string;
@@ -38,6 +46,8 @@ export interface GroupOutcome {
   selected: number;
   rate: number;
   ci: Interval | null;
+  /** Mean mock-screener score for the group in this arm. */
+  meanScore: number;
 }
 
 export interface ArmOutcome {
@@ -49,6 +59,8 @@ export interface ArmOutcome {
   fisherP: number;
   /** Ratio at or above the 0.8 screening heuristic. Not a legal test. */
   meetsFourFifths: boolean;
+  /** Mean score of the affected group minus the reference group (same qualifications, so 0 means no penalty). */
+  scoreGap: number;
   /** Mean job-relevant skills match of the shortlisted candidates (0–1). */
   shortlistSkills: number;
   /** Share of the shortlist that a job-relevant-only ranking (every cue masked) would also pick. */
@@ -58,7 +70,7 @@ export interface ArmOutcome {
 export interface MitigationSimulation {
   version: string;
   engineVersion: string;
-  cue: MaskableField;
+  cue: SimCue;
   seed: number;
   poolSize: number;
   shortlistSize: number;
@@ -70,7 +82,7 @@ export interface MitigationSimulation {
   touchesJobRelevantField: boolean;
 }
 
-function pool(cue: MaskableField, size: number, seed: number): SyntheticProfile[] {
+function pool(cue: SimCue, size: number, seed: number): SyntheticProfile[] {
   const rand = mulberry32(seed);
   const out: SyntheticProfile[] = [];
   // Matched pool: every qualification profile appears once in each group, so any
@@ -85,8 +97,10 @@ function pool(cue: MaskableField, size: number, seed: number): SyntheticProfile[
   return out;
 }
 
-function affectedValue(cue: MaskableField): Partial<SyntheticProfile> {
+function affectedValue(cue: SimCue): Partial<SyntheticProfile> {
   switch (cue) {
+    case "allBiased":
+      return { employmentGap: true, postcodeRegion: "Region N", nationality: "Non-UK national", nameSet: "Name set B" };
     case "employmentGap":
       return { employmentGap: true };
     case "postcodeRegion":
@@ -113,15 +127,16 @@ function shortlist(profiles: SyntheticProfile[], k: number, mask: readonly Maska
   );
 }
 
-function outcome(group: string, members: SyntheticProfile[], chosen: Set<string>, confidence: number): GroupOutcome {
+function outcome(group: string, members: SyntheticProfile[], chosen: Set<string>, mask: readonly MaskableField[], confidence: number): GroupOutcome {
   const selected = members.filter((p) => chosen.has(p.id)).length;
-  return { group, n: members.length, selected, rate: members.length ? selected / members.length : 0, ci: wilsonInterval(selected, members.length, confidence) };
+  const meanScore = members.length ? Math.round((members.reduce((s, p) => s + mockScreeningScore(p, mask), 0) / members.length) * 100) / 100 : 0;
+  return { group, n: members.length, selected, rate: members.length ? selected / members.length : 0, ci: wilsonInterval(selected, members.length, confidence), meanScore };
 }
 
-function arm(profiles: SyntheticProfile[], isAffected: (p: SyntheticProfile) => boolean, chosen: Set<string>, merit: Set<string>, cue: MaskableField, confidence: number): ArmOutcome {
+function arm(profiles: SyntheticProfile[], isAffected: (p: SyntheticProfile) => boolean, chosen: Set<string>, merit: Set<string>, cue: SimCue, mask: readonly MaskableField[], confidence: number): ArmOutcome {
   const g = CUE_GROUPS[cue];
-  const ref = outcome(g.reference, profiles.filter((p) => !isAffected(p)), chosen, confidence);
-  const aff = outcome(g.affected, profiles.filter(isAffected), chosen, confidence);
+  const ref = outcome(g.reference, profiles.filter((p) => !isAffected(p)), chosen, mask, confidence);
+  const aff = outcome(g.affected, profiles.filter(isAffected), chosen, mask, confidence);
   const ratio = ref.rate > 0 ? aff.rate / ref.rate : null;
   const picked = profiles.filter((p) => chosen.has(p.id));
   return {
@@ -131,12 +146,13 @@ function arm(profiles: SyntheticProfile[], isAffected: (p: SyntheticProfile) => 
     ratioCi: ratioInterval(aff.selected, aff.n, ref.selected, ref.n, confidence),
     fisherP: fisherExactTwoSided(aff.selected, aff.n - aff.selected, ref.selected, ref.n - ref.selected),
     meetsFourFifths: ratio != null && ratio >= 0.8,
+    scoreGap: Math.round((aff.meanScore - ref.meanScore) * 100) / 100,
     shortlistSkills: picked.length ? picked.reduce((s, p) => s + p.skillsMatch, 0) / picked.length : 0,
     meritAgreement: chosen.size ? [...chosen].filter((id) => merit.has(id)).length / chosen.size : 0,
   };
 }
 
-export function simulateMitigation(opts: { cue: MaskableField; poolSize?: number; shortlistRate?: number; seed?: number; confidence?: number }): MitigationSimulation {
+export function simulateMitigation(opts: { cue: SimCue; poolSize?: number; shortlistRate?: number; seed?: number; confidence?: number }): MitigationSimulation {
   const { cue, poolSize = 400, shortlistRate = 0.3, seed = 2026, confidence = 0.95 } = opts;
   if (poolSize < 20 || poolSize > 5000 || poolSize % 2) throw new RangeError("poolSize must be an even number between 20 and 5000");
   if (!(shortlistRate > 0 && shortlistRate < 1)) throw new RangeError("shortlistRate must be between 0 and 1");
@@ -145,7 +161,7 @@ export function simulateMitigation(opts: { cue: MaskableField; poolSize?: number
   const affectedIds = new Set(profiles.filter((_, i) => i % 2 === 1).map((p) => p.id));
   const isAffected = (p: SyntheticProfile) => affectedIds.has(p.id);
   const before = shortlist(profiles, k, []);
-  const after = shortlist(profiles, k, [cue]);
+  const after = shortlist(profiles, k, masked(cue));
   const merit = shortlist(profiles, k, ALL_CUES);
   const added = [...after].filter((id) => !before.has(id));
   const removed = [...before].filter((id) => !after.has(id));
@@ -157,14 +173,14 @@ export function simulateMitigation(opts: { cue: MaskableField; poolSize?: number
     poolSize,
     shortlistSize: k,
     confidence,
-    before: arm(profiles, isAffected, before, merit, cue, confidence),
-    after: arm(profiles, isAffected, after, merit, cue, confidence),
+    before: arm(profiles, isAffected, before, merit, cue, [], confidence),
+    after: arm(profiles, isAffected, after, merit, cue, masked(cue), confidence),
     changes: {
       newlyShortlisted: added.length,
       noLongerShortlisted: removed.length,
       newlyShortlistedAffected: added.filter((id) => affectedIds.has(id)).length,
       noLongerShortlistedReference: removed.filter((id) => !affectedIds.has(id)).length,
     },
-    touchesJobRelevantField: JOB_RELEVANT_CUES.includes(cue),
+    touchesJobRelevantField: masked(cue).some((c) => JOB_RELEVANT_CUES.includes(c)),
   };
 }

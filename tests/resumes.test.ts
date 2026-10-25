@@ -5,11 +5,12 @@ import { NEUTRAL_PROFILE, applyCue, runCounterfactual, type SyntheticProfile } f
 const bases = RESUME_PACK.map((r) => ({ id: r.id, yearsExperience: yearsOfExperience(r) }));
 
 describe("résumé pack", () => {
-  it("contains 60 CVs with no identifying or demographic fields", () => {
-    expect(RESUME_PACK).toHaveLength(60);
+  it("contains 200 CVs with no identifying or demographic fields", () => {
+    expect(RESUME_PACK).toHaveLength(200);
     for (const r of RESUME_PACK) {
       expect(Object.keys(r).sort()).toEqual(["id", "summary", "work"]);
-      expect(r.work.length).toBeGreaterThanOrEqual(2);
+      expect(r.work.length).toBeGreaterThanOrEqual(1);
+      expect(r.work.length).toBeLessThanOrEqual(6);
       for (const w of r.work) expect(Object.keys(w).sort()).toEqual(["company", "endDate", "highlights", "position", "startDate"]);
     }
     expect(JSON.stringify(RESUME_PACK)).not.toMatch(/@|https?:\/\//);
@@ -59,8 +60,8 @@ describe("new cues and masking", () => {
 describe("counterfactual lab with résumé bases", () => {
   it("uses each CV at most once and keeps its experience", () => {
     const res = runCounterfactual({ cue: "employmentGap", pairCount: 500, seed: 3, threshold: 60, bases });
-    expect(res.pairs).toHaveLength(60);
-    expect(new Set(res.pairs.map((p) => p.id)).size).toBe(60);
+    expect(res.pairs).toHaveLength(RESUME_PACK.length);
+    expect(new Set(res.pairs.map((p) => p.id)).size).toBe(RESUME_PACK.length);
     const p = res.pairs[0];
     expect(p.base.yearsExperience).toBe(bases.find((b) => b.id === p.id)!.yearsExperience);
   });

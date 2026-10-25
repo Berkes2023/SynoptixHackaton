@@ -3,11 +3,10 @@
 import { useMemo, useState } from "react";
 import { BeforeAfterChart } from "@/components/charts";
 import { Badge, fmtP, pct } from "@/components/ui";
-import type { MaskableField } from "@/lib/fairness/counterfactual";
-import { CUE_GROUPS, simulateMitigation, type ArmOutcome, type GroupOutcome } from "@/lib/fairness/mitigation";
+import { CUE_GROUPS, simulateMitigation, type ArmOutcome, type GroupOutcome, type SimCue } from "@/lib/fairness/mitigation";
 import { useStore } from "@/lib/store";
 
-const CUE_ORDER: MaskableField[] = ["nationality", "employmentGap", "postcodeRegion", "nameSet", "pronouns", "cvFormat"];
+const CUE_ORDER: SimCue[] = ["nationality", "employmentGap", "postcodeRegion", "nameSet", "allBiased", "pronouns", "cvFormat"];
 const ratio = (r: number | null) => (r == null ? "—" : r.toFixed(3));
 
 function ArmCard({ title, arm, tone }: { title: string; arm: ArmOutcome; tone: "before" | "after" }) {
@@ -34,6 +33,11 @@ function ArmCard({ title, arm, tone }: { title: string; arm: ArmOutcome; tone: "
         <dd className="tabular text-right text-base font-semibold text-ink" data-testid={`ratio-${tone}`}>
           {ratio(arm.ratio)}
         </dd>
+        <dt>Average score gap</dt>
+        <dd className="tabular text-right font-semibold text-ink" data-testid={`gap-${tone}`}>
+          {arm.scoreGap > 0 ? "+" : ""}
+          {arm.scoreGap.toFixed(1)} pts
+        </dd>
         <dt>Ratio CI</dt>
         <dd className="tabular text-right">{arm.ratioCi ? `${arm.ratioCi.lower.toFixed(2)} – ${arm.ratioCi.upper.toFixed(2)}` : "—"}</dd>
         <dt>Fisher exact p</dt>
@@ -53,7 +57,7 @@ function ArmCard({ title, arm, tone }: { title: string; arm: ArmOutcome; tone: "
  */
 export function MitigationSimulator() {
   const { log } = useStore();
-  const [cue, setCue] = useState<MaskableField>("nationality");
+  const [cue, setCue] = useState<SimCue>("nationality");
   const [poolSize, setPoolSize] = useState(400);
   const [rate, setRate] = useState(0.3);
   const [seed, setSeed] = useState(2026);
@@ -84,7 +88,7 @@ export function MitigationSimulator() {
           <label className="label" htmlFor="mit-cue">
             Cue to remove
           </label>
-          <select id="mit-cue" className="input" value={cue} onChange={(e) => setCue(e.target.value as MaskableField)}>
+          <select id="mit-cue" className="input" value={cue} onChange={(e) => setCue(e.target.value as SimCue)}>
             {CUE_ORDER.map((c) => (
               <option key={c} value={c}>
                 {CUE_GROUPS[c].label}
@@ -135,7 +139,7 @@ export function MitigationSimulator() {
             <strong>
               Ratio {ratio(sim.before.ratio)} → {ratio(sim.after.ratio)}
             </strong>{" "}
-            for {g.affected} vs {g.reference}. Hiding {g.label.toLowerCase()} moved {sim.changes.newlyShortlistedAffected} equally-qualified {g.affected} applicant
+            for {g.affected} vs {g.reference}; average score gap {sim.before.scoreGap.toFixed(1)} → {sim.after.scoreGap.toFixed(1)} points for identical qualifications. Hiding {g.label.toLowerCase()} moved {sim.changes.newlyShortlistedAffected} equally-qualified {g.affected} applicant
             {sim.changes.newlyShortlistedAffected === 1 ? "" : "s"} onto the shortlist, displacing {sim.changes.noLongerShortlistedReference} {g.reference} applicant
             {sim.changes.noLongerShortlistedReference === 1 ? "" : "s"} who had been ranked higher only because of the cue. The shortlist size stayed at {sim.shortlistSize}.
           </>

@@ -30,7 +30,7 @@ const MODULES: { id: string; icon: IconName; title: string; body: string; points
     icon: "flask",
     title: "Counterfactual Testing Studio",
     body: "Matched synthetic CVs differing in exactly one job-irrelevant cue, scored by a transparent mock engine.",
-    points: ["Résumé pack derived from jsonresume-fake (Unlicense)", "Side-by-side CV diff of the single change", "Score-change distribution, flip rate and sign test", "Experiment history", "Adapter interface for future authorised model testing"],
+    points: ["200 realistic, fully fictional CVs with varied careers", "Side-by-side CV diff of the single change", "Score-change distribution, flip rate and sign test", "Experiment history", "Adapter interface for future authorised model testing"],
     app: "/fairness-lab",
   },
   {
